@@ -9,7 +9,7 @@ dagger.py is a proof-of-concept script that demonstrates how to render audio fil
 
 ---
 
-Features
+### Features
 
 Psychoacoustic Noise Generation: Introduces imperceptible noise aligned with dominant frequencies to protect audio from generative AI learning.
 
@@ -23,7 +23,7 @@ Supports WAV Files: Handles mono WAV files efficiently.
 
 ---
 
-Installation
+### Installation
 
 1. Clone the repository:
 
@@ -41,7 +41,7 @@ cd harmonydagger
 
 ---
 
-Usage
+### Usage
 
 Run the script using the command line:
 
@@ -70,7 +70,7 @@ Example:
 
 ---
 
-How It Works
+### How It Works
 
 1. Frequency Analysis:
 
@@ -96,10 +96,10 @@ The perturbed audio file is saved to the specified location.
 
 ### Dependencies
 
-numpy
-scipy
-librosa
-soundfile
+numpy  
+scipy  
+librosa  
+soundfile  
 
 
 Install them using:
@@ -109,7 +109,7 @@ Install them using:
 
 ---
 
-Notes
+### Notes
 
 Input Audio: Ensure the input audio is in mono WAV format. Stereo files can be converted using tools like librosa.
 
@@ -121,7 +121,7 @@ Effectiveness: This script is a proof of concept and is intended for experimenta
 
 ---
 
-Future Work
+### Future Work
 
 Support for multi-channel (stereo) WAV files.
 
@@ -133,14 +133,14 @@ Evaluation against specific generative AI models.
 
 ---
 
-License
+### License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 
 ---
 
-Contributing
+### Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request with your improvements.
 
