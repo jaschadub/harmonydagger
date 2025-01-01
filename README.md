@@ -2,9 +2,9 @@
 POC code for HarmonyCloak paper 
 https://mosis.eecs.utk.edu/harmonycloak.html
 
-`harmonydagger.py` - Make Music Unlearnable for Generative AI
+`dagger.py` - Make Music Unlearnable for Generative AI
 
-harmonydagger.py is a proof-of-concept script that demonstrates how to render audio files unlearnable for generative AI models by introducing imperceptible noise.
+dagger.py is a proof-of-concept script that demonstrates how to render audio files unlearnable for generative AI models by introducing imperceptible noise.
 
 
 ---
@@ -45,7 +45,7 @@ Usage
 
 Run the script using the command line:
 
-`python harmonydagger.py <input_file> <output_file> [OPTIONS]`
+`python dagger.py <input_file> <output_file> [OPTIONS]`
 
 Required Arguments:
 
@@ -65,7 +65,7 @@ Optional Arguments:
 
 Example:
 
-`python harmonydagger.py input.wav output_perturbed.wav --window_size 2048 --hop_size 1024 --noise_scale 0.02`
+`python dagger.py input.wav output_perturbed.wav --window_size 2048 --hop_size 1024 --noise_scale 0.02`
 
 
 ---
