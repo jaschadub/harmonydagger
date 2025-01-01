@@ -4,7 +4,7 @@ https://mosis.eecs.utk.edu/harmonycloak.html
 
 `harmonydagger.py` - Make Music Unlearnable for Generative AI
 
-harmonydagger.py is a proof-of-concept script that demonstrates how to render audio files unlearnable for generative AI models by introducing imperceptible noise. This project is inspired by the HARMONYCLOAK framework.
+harmonydagger.py is a proof-of-concept script that demonstrates how to render audio files unlearnable for generative AI models by introducing imperceptible noise.
 
 
 ---
