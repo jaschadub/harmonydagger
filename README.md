@@ -2,7 +2,7 @@
 POC code for HarmonyCloak paper 
 https://mosis.eecs.utk.edu/harmonycloak.html
 
-harmonydagger.py - Make Music Unlearnable for Generative AI
+`harmonydagger.py` - Make Music Unlearnable for Generative AI
 
 harmonydagger.py is a proof-of-concept script that demonstrates how to render audio files unlearnable for generative AI models by introducing imperceptible noise. This project is inspired by the HARMONYCLOAK framework.
 
@@ -27,13 +27,14 @@ Installation
 
 1. Clone the repository:
 
+```
 git clone https://github.com/yourusername/harmonydagger.git
 cd harmonydagger
-
+```
 
 2. Install the required Python packages:
 
-pip install numpy scipy librosa soundfile
+`pip install numpy scipy librosa soundfile`
 
 
 
@@ -44,7 +45,7 @@ Usage
 
 Run the script using the command line:
 
-python harmonydagger.py <input_file> <output_file> [OPTIONS]
+`python harmonydagger.py <input_file> <output_file> [OPTIONS]`
 
 Required Arguments:
 
@@ -64,7 +65,7 @@ Optional Arguments:
 
 Example:
 
-python harmonydagger.py input.wav output_perturbed.wav --window_size 2048 --hop_size 1024 --noise_scale 0.02
+`python harmonydagger.py input.wav output_perturbed.wav --window_size 2048 --hop_size 1024 --noise_scale 0.02`
 
 
 ---
@@ -87,32 +88,23 @@ Imperceptible noise is generated based on psychoacoustic masking and aligned wit
 
 The noise is added to the original audio while preserving perceptual quality.
 
-
-
 4. Output:
 
 The perturbed audio file is saved to the specified location.
 
-
-
-
-
 ---
 
-Dependencies
+### Dependencies
 
 numpy
-
 scipy
-
 librosa
-
 soundfile
 
 
 Install them using:
 
-pip install numpy scipy librosa soundfile
+`pip install numpy scipy librosa soundfile`
 
 
 ---
