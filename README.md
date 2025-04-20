@@ -46,12 +46,19 @@ cd harmonydagger
 ### ALTERNATIVE INSTALLATION (mac)
 
 create new empty project file
+
 download dagger.py into project file manually
+
 (run the following using command line, replace ''/Users/yourusername/projectfile/'' with path to your project file u just created)
+
 python3 -m venv /Users/yourusername/projectfile/
+
 source /Users/yourusername/projectfile/bin/activate
+
 python3 -m pip install numpy scipy librosa soundfile
+
 ????
+
 profit
 
 what this does: install and run everything inside a virtual environment using python3
