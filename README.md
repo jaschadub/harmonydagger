@@ -6,6 +6,12 @@ Implementation of the [HarmonyCloak](https://mosis.eecs.utk.edu/harmonycloak.htm
 
 **HarmonyDagger** introduces imperceptible psychoacoustic noise into audio files to make them unlearnable by generative AI models, while preserving perceptual quality for human listeners.
 
+<figure>
+  <img src="https://i.imgur.com/BIkRLMU.png" alt="How ChatGPT depicts HarmonyDagger" width="500"/>
+  <figcaption><em>How ChatGPT depicts HarmonyDagger</em></figcaption>
+</figure>
+
+
 ---
 
 ## ✨ Features
