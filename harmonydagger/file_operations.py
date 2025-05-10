@@ -1,24 +1,26 @@
 """
 File processing operations for HarmonyDagger.
 """
+import logging
+import multiprocessing
 import os
 import time
-import logging
+from concurrent.futures import ProcessPoolExecutor
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import soundfile as sf
-import multiprocessing
-from concurrent.futures import ProcessPoolExecutor
-from typing import Tuple, Optional, List, Dict, Any
 
 from .common import (
-    DEFAULT_WINDOW_SIZE,
     DEFAULT_HOP_SIZE,
     DEFAULT_NOISE_SCALE,
+    DEFAULT_WINDOW_SIZE,
+    DIFFERENCE_SUFFIX,
     SPECTROGRAM_SUFFIX,
-    DIFFERENCE_SUFFIX
 )
 from .core import apply_noise_multichannel
-from .visualization import visualize_spectrograms, visualize_difference
+from .visualization import visualize_difference, visualize_spectrograms
+
 
 def process_audio_file(
     input_file: str,
@@ -109,7 +111,7 @@ def batch_process(
 ) -> None:
     """
     Process all audio files in a directory.
-    
+
     Args:
         input_dir: Directory containing input audio files
         output_dir: Directory to save processed files

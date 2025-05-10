@@ -34,11 +34,9 @@ jobs:
 
     - name: Lint with ruff
       run: |
-        # Check and fail if there are issues that need to be fixed manually
-        ruff check .
-        # Then fix automatically fixable issues
+        # Fix automatically fixable issues first
         ruff check . --fix
-        # Finally check again to verify all issues are fixed
+        # Then verify that all issues are resolved
         ruff check .
 
   build:

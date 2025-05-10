@@ -3,13 +3,8 @@ Psychoacoustic modeling functions for HarmonyDagger.
 """
 import numpy as np
 from numpy.typing import NDArray
+
 from .common import (
-    HZ_TO_KHZ,
-    HEARING_THRESH_C1,
-    HEARING_THRESH_F_POW,
-    HEARING_THRESH_C2,
-    HEARING_THRESH_EXP_C1,
-    HEARING_THRESH_F_OFFSET,
     BARK_SCALE_C1,
     BARK_SCALE_C2,
     BARK_SCALE_C3,
@@ -19,19 +14,26 @@ from .common import (
     CBW_C3,
     CBW_F_POW,
     DB_LOG_EPSILON,
-    REFERENCE_PRESSURE
+    HEARING_THRESH_C1,
+    HEARING_THRESH_C2,
+    HEARING_THRESH_EXP_C1,
+    HEARING_THRESH_F_OFFSET,
+    HEARING_THRESH_F_POW,
+    HZ_TO_KHZ,
+    REFERENCE_PRESSURE,
 )
+
 
 def hearing_threshold(frequency_hz: float) -> float:
     """
     Calculate the absolute hearing threshold in dB SPL at a given frequency.
-    
+
     This implements a simplified model of human hearing threshold
     based on ISO 226:2003 equal-loudness contours.
-    
+
     Args:
         frequency_hz: Frequency in Hz
-        
+
     Returns:
         Hearing threshold in dB SPL
     """
@@ -47,13 +49,13 @@ def hearing_threshold(frequency_hz: float) -> float:
 def bark_scale(frequency_hz: float) -> float:
     """
     Convert frequency in Hz to Bark scale.
-    
+
     The Bark scale is a psychoacoustic scale that matches the critical bands
     of human hearing, which is important for masking effects.
-    
+
     Args:
         frequency_hz: Frequency in Hz
-        
+
     Returns:
         Frequency in Bark scale
     """
@@ -66,10 +68,10 @@ def bark_scale(frequency_hz: float) -> float:
 def critical_band_width(center_frequency_hz: float) -> float:
     """
     Calculate the width of the critical band at a given center frequency.
-    
+
     Args:
         center_frequency_hz: Center frequency in Hz
-        
+
     Returns:
         Critical bandwidth in Hz
     """
@@ -81,10 +83,10 @@ def critical_band_width(center_frequency_hz: float) -> float:
 def magnitude_to_db(magnitude: NDArray[np.float64]) -> NDArray[np.float64]:
     """
     Convert linear magnitude to dB SPL.
-    
+
     Args:
         magnitude: Linear magnitude values
-        
+
     Returns:
         Magnitude in dB SPL
     """
@@ -97,10 +99,10 @@ def magnitude_to_db(magnitude: NDArray[np.float64]) -> NDArray[np.float64]:
 def db_to_magnitude(db: NDArray[np.float64]) -> NDArray[np.float64]:
     """
     Convert dB SPL back to linear magnitude.
-    
+
     Args:
         db: Values in dB SPL
-        
+
     Returns:
         Linear magnitude values
     """
