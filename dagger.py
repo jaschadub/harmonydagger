@@ -18,11 +18,43 @@ from scipy.signal import stft, istft
 import matplotlib.pyplot as plt
 import os
 import time
+import logging
 from typing import Tuple, List, Union, Optional
+from numpy.typing import NDArray
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Constants for psychoacoustic modeling
 REFERENCE_PRESSURE = 20e-6  # Reference pressure in air (20 μPa)
 MASKING_CURVE_SLOPE = 0.8   # Slope for frequency masking (dB/Bark)
+DB_LOG_EPSILON = 1e-10      # Epsilon for log10 to avoid log(0)
+HZ_TO_KHZ = 1000.0          # Conversion factor for Hz to kHz
+
+# Constants for hearing_threshold function (ISO 226:2003 simplified)
+HEARING_THRESH_F_POW = -0.8
+HEARING_THRESH_C1 = 3.64
+HEARING_THRESH_C2 = -6.5
+HEARING_THRESH_EXP_C1 = -0.6
+HEARING_THRESH_F_OFFSET = 3.3
+
+# Constants for bark_scale function
+BARK_SCALE_C1 = 13.0
+BARK_SCALE_C2 = 0.00076
+BARK_SCALE_C3 = 3.5
+BARK_SCALE_F_DIV = 7500.0
+
+# Constants for critical_band_width function (Zwicker's model simplified)
+CBW_C1 = 25.0
+CBW_C2 = 75.0
+CBW_C3 = 1.4
+CBW_F_POW = 0.69
+
+# Constants for adaptive noise scaling
+ADAPTIVE_SCALE_NORM_MIN = 0.5
+ADAPTIVE_SCALE_NORM_RANGE = 1.0 # Max will be MIN + RANGE = 1.5
+ADAPTIVE_SIGNAL_STRENGTH_DIV = 60.0
+NOISE_UPPER_BOUND_FACTOR = 0.8 # Noise magnitude upper bound relative to signal
 
 # ===== Psychoacoustic Modeling Functions =====
 
@@ -39,8 +71,11 @@ def hearing_threshold(frequency_hz: float) -> float:
     Returns:
         Hearing threshold in dB SPL
     """
-    f = frequency_hz / 1000.0  # Convert to kHz
-    threshold_db = 3.64 * (f ** -0.8) - 6.5 * np.exp(-0.6 * ((f - 3.3) ** 2))
+    f_khz = frequency_hz / HZ_TO_KHZ
+    threshold_db = (
+        HEARING_THRESH_C1 * (f_khz**HEARING_THRESH_F_POW) -
+        HEARING_THRESH_C2 * np.exp(HEARING_THRESH_EXP_C1 * ((f_khz - HEARING_THRESH_F_OFFSET)**2))
+    )
     return threshold_db
 
 
@@ -57,7 +92,10 @@ def bark_scale(frequency_hz: float) -> float:
     Returns:
         Frequency in Bark scale
     """
-    return 13 * np.arctan(0.00076 * frequency_hz) + 3.5 * np.arctan((frequency_hz / 7500.0) ** 2)
+    return (
+        BARK_SCALE_C1 * np.arctan(BARK_SCALE_C2 * frequency_hz) +
+        BARK_SCALE_C3 * np.arctan((frequency_hz / BARK_SCALE_F_DIV)**2)
+    )
 
 
 def critical_band_width(center_frequency_hz: float) -> float:
@@ -71,12 +109,13 @@ def critical_band_width(center_frequency_hz: float) -> float:
         Critical bandwidth in Hz
     """
     # Simplified critical bandwidth equation based on Zwicker's model
-    return 25 + 75 * (1 + 1.4 * (center_frequency_hz / 1000.0) ** 2) ** 0.69
+    f_khz = center_frequency_hz / HZ_TO_KHZ
+    return CBW_C1 + CBW_C2 * (1 + CBW_C3 * (f_khz**2))**CBW_F_POW
 
 
 # ===== Audio Processing Utility Functions =====
 
-def magnitude_to_db(magnitude: np.ndarray) -> np.ndarray:
+def magnitude_to_db(magnitude: NDArray[np.float_]) -> NDArray[np.float_]:
     """
     Convert linear magnitude to dB SPL.
     
@@ -87,12 +126,12 @@ def magnitude_to_db(magnitude: np.ndarray) -> np.ndarray:
         Magnitude in dB SPL
     """
     # Avoid log(0) by setting a minimum value
-    magnitude = np.maximum(magnitude, 1e-10)
-    db = 20 * np.log10(magnitude / REFERENCE_PRESSURE)
+    magnitude = np.maximum(magnitude, DB_LOG_EPSILON)
+    db = 20 * np.log10(magnitude / REFERENCE_PRESSURE) # 20 is standard for dB SPL from pressure
     return db
 
 
-def db_to_magnitude(db: np.ndarray) -> np.ndarray:
+def db_to_magnitude(db: NDArray[np.float_]) -> NDArray[np.float_]:
     """
     Convert dB SPL back to linear magnitude.
     
@@ -102,19 +141,19 @@ def db_to_magnitude(db: np.ndarray) -> np.ndarray:
     Returns:
         Linear magnitude values
     """
-    return 10 ** (db / 20.0) * REFERENCE_PRESSURE
+    return 10 ** (db / 20.0) * REFERENCE_PRESSURE # 20.0 is standard for dB SPL to pressure
 
 
 # ===== Noise Generation Functions =====
 
 def generate_psychoacoustic_noise(
-    audio: np.ndarray, 
+    audio: NDArray[np.float_],
     sr: int, 
     window_size: int = 1024, 
     hop_size: int = 512, 
     noise_scale: float = 0.01,
     adaptive_scaling: bool = True
-) -> np.ndarray:
+) -> NDArray[np.float_]:
     """
     Generate psychoacoustically masked noise for a single audio channel.
     
@@ -195,15 +234,17 @@ def generate_psychoacoustic_noise(
                     # Scale noise based on signal strength (stronger signal -> more noise)
                     signal_strength = mag_db - hearing_db
                     if signal_strength > 0:
-                        # Normalize to a reasonable range (0.5-1.5 * noise_scale)
-                        adaptive_factor = 0.5 + min(1.0, signal_strength / 60)
+                        # Normalize to a reasonable range (ADAPTIVE_SCALE_NORM_MIN to ADAPTIVE_SCALE_NORM_MIN + ADAPTIVE_SCALE_NORM_RANGE)
+                        adaptive_factor = ADAPTIVE_SCALE_NORM_MIN + min(ADAPTIVE_SCALE_NORM_RANGE, signal_strength / ADAPTIVE_SIGNAL_STRENGTH_DIV)
                         effective_scale = noise_scale * adaptive_factor
                 
                 # Calculate noise level: between hearing threshold and masking threshold
+                # The (1.0 - masking_attenuation/20) term approximates the effect of masking in the magnitude domain
+                # 20 is used here as it relates to the 20*log10() for dB conversion.
                 noise_mag = np.clip(
-                    effective_scale * mag_val * (1.0 - masking_attenuation/20), 
+                    effective_scale * mag_val * (1.0 - masking_attenuation / 20.0),
                     hearing_mag,  # Lower bound: hearing threshold
-                    0.8 * mag_val  # Upper bound: slightly below original magnitude
+                    NOISE_UPPER_BOUND_FACTOR * mag_val  # Upper bound: slightly below original magnitude
                 )
                 
                 # Add noise to the frequency bin
@@ -229,13 +270,13 @@ def generate_psychoacoustic_noise(
 
 
 def apply_noise_multichannel(
-    audio: np.ndarray, 
+    audio: NDArray[np.float_],
     sr: int, 
     window_size: int, 
     hop_size: int, 
     noise_scale: float,
     adaptive_scaling: bool = True
-) -> np.ndarray:
+) -> NDArray[np.float_]:
     """
     Process multi-channel audio by applying psychoacoustic noise to each channel.
     
@@ -279,7 +320,7 @@ def apply_noise_multichannel(
         return np.vstack(noisy_channels)
 
 
-def apply_noise_to_audio(audio: np.ndarray, noise: np.ndarray) -> np.ndarray:
+def apply_noise_to_audio(audio: NDArray[np.float_], noise: NDArray[np.float_]) -> NDArray[np.float_]:
     """
     Apply generated noise to audio signal and prevent clipping.
     
@@ -297,8 +338,8 @@ def apply_noise_to_audio(audio: np.ndarray, noise: np.ndarray) -> np.ndarray:
 # ===== Visualization Functions =====
 
 def visualize_spectrograms(
-    original: np.ndarray, 
-    perturbed: np.ndarray, 
+    original: NDArray[np.float_],
+    perturbed: NDArray[np.float_],
     sr: int,
     output_path: Optional[str] = None
 ) -> None:
@@ -334,14 +375,14 @@ def visualize_spectrograms(
     # Save or display the figure
     if output_path:
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        print(f"Spectrogram saved to: {output_path}")
+        logging.info(f"Spectrogram saved to: {output_path}")
     else:
         plt.show()
 
 
 def visualize_difference(
-    original: np.ndarray, 
-    perturbed: np.ndarray, 
+    original: NDArray[np.float_],
+    perturbed: NDArray[np.float_],
     sr: int,
     output_path: Optional[str] = None
 ) -> None:
@@ -386,7 +427,7 @@ def visualize_difference(
     # Save or display the figure
     if output_path:
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        print(f"Difference visualization saved to: {output_path}")
+        logging.info(f"Difference visualization saved to: {output_path}")
     else:
         plt.show()
 
@@ -404,7 +445,7 @@ def process_audio_file(
     visualize: bool = False,
     visualize_diff: bool = False,
     visualization_path: Optional[str] = None
-) -> Tuple[float, float]:
+) -> Tuple[Optional[float], Optional[float], Optional[str]]:
     """
     Process a single audio file and add psychoacoustic noise.
     
@@ -421,13 +462,14 @@ def process_audio_file(
         visualization_path: Directory to save visualizations
         
     Returns:
-        Tuple of (processing_time, file_size_ratio)
+        Tuple of (processing_time, file_size_ratio, error_message).
+        Error_message is None if successful.
     """
     start_time = time.time()
     
     try:
         # Load audio file
-        print(f"Loading input file: {input_file}")
+        logging.info(f"Loading input file: {input_file}")
         audio, sr = sf.read(input_file, always_2d=True)
         audio = audio.T  # (channels, samples)
         
@@ -436,13 +478,13 @@ def process_audio_file(
         
         # Convert to mono if requested
         if force_mono and audio.shape[0] > 1:
-            print("Converting to mono...")
+            logging.info("Converting to mono...")
             audio = np.mean(audio, axis=0, keepdims=True)
         
         # Process audio
-        print(f"Generating psychoacoustic noise with scale: {noise_scale}")
+        logging.info(f"Generating psychoacoustic noise with scale: {noise_scale}")
         additional_info = "with adaptive scaling" if adaptive_scaling else ""
-        print(f"Processing audio {additional_info}...")
+        logging.info(f"Processing audio {additional_info}...")
         
         perturbed = apply_noise_multichannel(
             audio, sr, window_size, hop_size, noise_scale, adaptive_scaling
@@ -453,7 +495,7 @@ def process_audio_file(
         os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
         
         # Save output file
-        print(f"Saving perturbed audio to: {output_file}")
+        logging.info(f"Saving perturbed audio to: {output_file}")
         sf.write(output_file, perturbed, sr)
         
         # Calculate processing time and file size ratio
@@ -485,12 +527,13 @@ def process_audio_file(
                 
                 visualize_difference(audio[0], perturbed.T[0], sr, diff_output)
         
-        print(f"Process completed successfully in {processing_time:.2f} seconds.")
-        return processing_time, file_size_ratio
+        logging.info(f"Process completed successfully in {processing_time:.2f} seconds for {input_file}.")
+        return processing_time, file_size_ratio, None
         
     except Exception as e:
-        print(f"Error processing {input_file}: {str(e)}")
-        return 0, 0
+        error_msg = f"Error processing {input_file}: {str(e)}"
+        logging.error(error_msg)
+        return None, None, error_msg
 
 
 def batch_process(
@@ -532,24 +575,25 @@ def batch_process(
     files = [f for f in os.listdir(input_dir) if f.lower().endswith(file_extension)]
     
     if not files:
-        print(f"No {file_extension} files found in {input_dir}")
+        logging.warning(f"No {file_extension} files found in {input_dir}")
         return
     
-    print(f"Found {len(files)} {file_extension} files to process")
+    logging.info(f"Found {len(files)} {file_extension} files to process")
     
     # Process each file
     total_time = 0
-    file_size_ratios = []
+    successful_processing_count = 0
+    failed_files_info = [] # List to store (filename, error_message)
     
     for i, file_name in enumerate(files):
         input_path = os.path.join(input_dir, file_name)
         output_path = os.path.join(output_dir, file_name)
         
-        print(f"\nProcessing file {i+1}/{len(files)}: {file_name}")
-        proc_time, size_ratio = process_audio_file(
-            input_path, 
-            output_path, 
-            window_size, 
+        logging.info(f"Processing file {i+1}/{len(files)}: {file_name}")
+        proc_time, size_ratio, error_msg = process_audio_file(
+            input_path,
+            output_path,
+            window_size,
             hop_size, 
             noise_scale,
             force_mono,
@@ -559,19 +603,26 @@ def batch_process(
             vis_dir
         )
         
-        total_time += proc_time
-        if size_ratio > 0:
-            file_size_ratios.append(size_ratio)
-    
+        if error_msg is None and proc_time is not None and size_ratio is not None:
+            total_time += proc_time
+            # file_size_ratios.append(size_ratio) # This was not used, can be removed or re-added if needed for avg.
+            successful_processing_count +=1
+        else:
+            failed_files_info.append((file_name, error_msg or "Unknown error"))
+            
     # Print summary
-    if file_size_ratios:
-        avg_ratio = sum(file_size_ratios) / len(file_size_ratios)
-        print("\nBatch Processing Summary:")
-        print(f"Total processing time: {total_time:.2f} seconds")
-        print(f"Average file size ratio: {avg_ratio:.2f}")
-        print(f"Processed files saved to: {output_dir}")
-        if visualize or visualize_diff:
-            print(f"Visualizations saved to: {vis_dir}")
+    logging.info("\n----- Batch Processing Summary -----")
+    logging.info(f"Successfully processed files: {successful_processing_count}/{len(files)}")
+    logging.info(f"Total processing time for successful files: {total_time:.2f} seconds")
+    logging.info(f"Processed files saved to: {output_dir}")
+    if visualize or visualize_diff:
+        logging.info(f"Visualizations saved to: {vis_dir}")
+
+    if failed_files_info:
+        logging.warning(f"\nEncountered errors with {len(failed_files_info)} file(s):")
+        for file_name, err_msg in failed_files_info:
+            logging.warning(f"  - {file_name}: {err_msg}")
+    logging.info("----- End of Batch Processing Summary -----")
 
 
 # ===== Main Execution =====
@@ -585,6 +636,7 @@ def main(args):
     """
     # Single file processing
     if not args.batch_mode:
+        logging.info(f"Starting single file processing for: {args.input_file}")
         process_audio_file(
             args.input_file,
             args.output_file,
@@ -600,9 +652,11 @@ def main(args):
     # Batch processing mode
     else:
         if not args.output_dir:
-            print("Error: --output_dir is required for batch processing")
+            logging.error("Error: --output_dir is required for batch processing")
+            parser.error("--output_dir is required for batch processing") # Keep parser error for CLI exit
             return
         
+        logging.info(f"Starting batch processing from input_dir: {args.input_dir}")
         batch_process(
             args.input_dir,
             args.output_dir,
