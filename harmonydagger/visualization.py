@@ -16,6 +16,7 @@ from .common import (
     DEFAULT_VIS_NOVERLAP,
 )
 
+
 def visualize_spectrograms(
     original: NDArray[np.float64],
     perturbed: NDArray[np.float64],

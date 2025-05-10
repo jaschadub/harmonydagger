@@ -1,6 +1,10 @@
 import pytest
 
-from harmonydagger.psychoacoustics import bark_scale, critical_band_width, hearing_threshold
+from harmonydagger.psychoacoustics import (
+    bark_scale,
+    critical_band_width,
+    hearing_threshold,
+)
 
 # Test cases for bark_scale
 # Format: (input_hz, expected_bark_approx) - using approximate values for now

@@ -11,6 +11,7 @@ from typing import List
 from .common import DEFAULT_HOP_SIZE, DEFAULT_NOISE_SCALE, DEFAULT_WINDOW_SIZE
 from .file_operations import batch_process, process_audio_file
 
+
 def setup_logging(verbose: bool = False) -> None:
     """Configure logging based on verbosity level."""
     log_level = logging.DEBUG if verbose else logging.INFO

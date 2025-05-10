@@ -3,25 +3,26 @@ Core audio processing and noise generation functions for HarmonyDagger.
 """
 import numpy as np
 from numpy.typing import NDArray
-from scipy.signal import stft, istft
+from scipy.signal import istft, stft
 
 from .common import (
-    DEFAULT_WINDOW_SIZE,
-    DEFAULT_HOP_SIZE,
-    DEFAULT_NOISE_SCALE,
-    MASKING_CURVE_SLOPE,
     ADAPTIVE_SCALE_NORM_MIN,
     ADAPTIVE_SCALE_NORM_RANGE,
     ADAPTIVE_SIGNAL_STRENGTH_DIV,
-    NOISE_UPPER_BOUND_FACTOR
+    DEFAULT_HOP_SIZE,
+    DEFAULT_NOISE_SCALE,
+    DEFAULT_WINDOW_SIZE,
+    MASKING_CURVE_SLOPE,
+    NOISE_UPPER_BOUND_FACTOR,
 )
 from .psychoacoustics import (
-    hearing_threshold,
     bark_scale,
     critical_band_width,
+    db_to_magnitude,
+    hearing_threshold,
     magnitude_to_db,
-    db_to_magnitude
 )
+
 
 def generate_psychoacoustic_noise(
     audio: NDArray[np.float64],
