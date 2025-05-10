@@ -51,7 +51,7 @@ Implementation of the [HarmonyCloak](https://mosis.eecs.utk.edu/harmonycloak.htm
 git clone https://github.com/yourusername/harmonydagger.git
 cd harmonydagger
 
-# Install the package
+# Install the package (v0.2.0)
 pip install -e .
 ```
 
