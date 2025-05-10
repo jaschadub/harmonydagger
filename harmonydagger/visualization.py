@@ -7,7 +7,13 @@ from numpy.typing import NDArray
 from typing import Optional
 import logging
 
-from .common import *
+from .common import (
+    DEFAULT_FIGSIZE_SPECTROGRAM,
+    DEFAULT_FIGSIZE_DIFFERENCE,
+    DEFAULT_VIS_NFFT,
+    DEFAULT_VIS_NOVERLAP,
+    DEFAULT_VIS_DPI
+)
 
 def visualize_spectrograms(
     original: NDArray[np.float64],

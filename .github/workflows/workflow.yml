@@ -34,6 +34,11 @@ jobs:
 
     - name: Lint with ruff
       run: |
+        # Check first to see the issues
+        ruff check . || true
+        # Then fix automatically fixable issues
+        ruff check . --fix
+        # Finally check again to verify the fix worked
         ruff check .
 
   build:
