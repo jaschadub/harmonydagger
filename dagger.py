@@ -11,6 +11,12 @@ by Syed Irfan Ali Meerza, Lichao Sun, and Jian Liu
 """
 
 import argparse
+import sys
+import os
+
+# Ensure the package directory is in the Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 # import numpy as np # No longer directly used in this file
 # import librosa # No longer directly used in this file
 # import soundfile as sf # No longer directly used in this file
@@ -28,33 +34,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Import constants from the common module
 from harmonydagger.common import *
 
-# Import psychoacoustic functions
-from harmonydagger.psychoacoustics import (
-    hearing_threshold,
-    bark_scale,
-    critical_band_width,
-    magnitude_to_db,
-    db_to_magnitude
-)
-
-# Import core processing functions
-from harmonydagger.core import (
-    generate_psychoacoustic_noise,
-    apply_noise_multichannel,
-    apply_noise_to_audio
-)
-
-# Import visualization functions
-from harmonydagger.visualization import (
-    visualize_spectrograms,
-    visualize_difference
-)
-
-# Import file operation functions
+# Import file operation functions which orchestrate the rest
 from harmonydagger.file_operations import (
     process_audio_file,
     batch_process
 )
+
+# Note: Other modules like psychoacoustics, core, visualization are used by
+# file_operations and do not need to be directly imported here anymore.
 
 # ===== Main Execution =====
 
