@@ -3,7 +3,24 @@ Psychoacoustic modeling functions for HarmonyDagger.
 """
 import numpy as np
 from numpy.typing import NDArray
-from .common import * # Import all constants
+from .common import (
+    HZ_TO_KHZ,
+    HEARING_THRESH_C1,
+    HEARING_THRESH_F_POW,
+    HEARING_THRESH_C2,
+    HEARING_THRESH_EXP_C1,
+    HEARING_THRESH_F_OFFSET,
+    BARK_SCALE_C1,
+    BARK_SCALE_C2,
+    BARK_SCALE_C3,
+    BARK_SCALE_F_DIV,
+    CBW_C1,
+    CBW_C2,
+    CBW_C3,
+    CBW_F_POW,
+    DB_LOG_EPSILON,
+    REFERENCE_PRESSURE
+)
 
 def hearing_threshold(frequency_hz: float) -> float:
     """

@@ -9,9 +9,14 @@ import soundfile as sf
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 from typing import Tuple, Optional, List, Dict, Any
-from numpy.typing import NDArray
 
-from .common import *
+from .common import (
+    DEFAULT_WINDOW_SIZE,
+    DEFAULT_HOP_SIZE,
+    DEFAULT_NOISE_SCALE,
+    SPECTROGRAM_SUFFIX,
+    DIFFERENCE_SUFFIX
+)
 from .core import apply_noise_multichannel
 from .visualization import visualize_spectrograms, visualize_difference
 
