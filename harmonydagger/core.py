@@ -36,13 +36,15 @@ def generate_psychoacoustic_noise(
     phase = np.angle(stft_matrix)
     noise_magnitude = np.zeros_like(magnitude)
     
+    # Pre-calculate bark scale frequencies for efficiency
     bark_freqs = np.array([bark_scale(f) for f in freqs])
 
     for t in range(magnitude.shape[1]):
         mag_frame = magnitude[:, t]
         dom_freq_idx = np.argmax(mag_frame)
         dom_freq_hz = freqs[dom_freq_idx]
-        dom_freq_bark = bark_scale(dom_freq_hz)
+        # Use pre-calculated bark value instead of recalculating
+        dom_freq_bark = bark_freqs[dom_freq_idx]
         
         cb_width_hz = critical_band_width(dom_freq_hz)
         # Ensure masking_band is at least 1 bin wide
