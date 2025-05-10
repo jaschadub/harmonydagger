@@ -44,29 +44,65 @@ Implementation of the [HarmonyCloak](https://mosis.eecs.utk.edu/harmonycloak.htm
 
 ## 📦 Installation
 
-Clone the repository:
+### Method 1: Install locally (until published to PyPI)
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/harmonydagger.git
+cd harmonydagger
+
+# Install the package
+pip install -e .
+```
+
+### Method 2: Install from PyPI (coming soon)
+
+In the future, the package will be available via:
+
+```bash
+pip install harmonydagger
+```
+
+### Method 3: Manual Installation
+
+If you don't want to install as a package:
 
 ```bash
 git clone https://github.com/yourusername/harmonydagger.git
 cd harmonydagger
-```
-
-Install dependencies:
-
-```bash
-pip install numpy scipy librosa soundfile matplotlib
+pip install -r requirements.txt  # If a requirements.txt file exists
 ```
 
 ---
 
 ## 🚀 Usage
 
+### From Command Line
+
+After installation, you can use HarmonyDagger directly from the command line:
+
+```bash
+harmonydagger input.wav output.wav [OPTIONS]
+```
+
+### As a Python Module
+
+```python
+from harmonydagger.file_operations import process_audio_file, batch_process
+
+# Process single file
+process_audio_file('input.wav', 'output.wav', noise_scale=0.015)
+
+# Process directory
+batch_process('input_dir', 'output_dir', noise_scale=0.015, parallel=True)
+```
+
 ### Single File Processing
 
 Process a single audio file:
 
 ```bash
-python dagger.py input.wav output.wav [OPTIONS]
+harmonydagger input.wav output.wav [OPTIONS]
 ```
 
 ### Batch Processing
@@ -74,7 +110,15 @@ python dagger.py input.wav output.wav [OPTIONS]
 Process all audio files in a directory:
 
 ```bash
-python dagger.py --batch_mode --input_dir /path/to/input --output_dir /path/to/output [OPTIONS]
+harmonydagger --input_dir /path/to/input --output_dir /path/to/output [OPTIONS]
+```
+
+### Parallel Batch Processing
+
+Process files in parallel for significant speed improvements:
+
+```bash
+harmonydagger --input_dir /path/to/input --output_dir /path/to/output --parallel [OPTIONS]
 ```
 
 ### Required Arguments (Single File Mode)
@@ -84,10 +128,11 @@ python dagger.py --batch_mode --input_dir /path/to/input --output_dir /path/to/o
 
 ### Batch Processing Arguments
 
-- `--batch_mode`: Enable batch processing mode
 - `--input_dir`: Directory containing input audio files
 - `--output_dir`: Directory to save processed files
-- `--file_extension`: File extension to process (default: ".wav")
+- `--ext`: File extension to process (default: ".wav")
+- `--parallel`: Enable parallel processing for batch operations
+- `--workers`: Number of worker processes for parallel processing (default: CPU count)
 
 ### Processing Options
 
@@ -106,16 +151,19 @@ python dagger.py --batch_mode --input_dir /path/to/input --output_dir /path/to/o
 
 ```bash
 # Basic protection with default settings
-python dagger.py input.wav output.wav
+harmonydagger input.wav output.wav
 
 # Apply stronger protection with adaptive scaling
-python dagger.py input.wav output.wav --noise_scale 0.02 --adaptive_scaling
+harmonydagger input.wav output.wav --noise_scale 0.02 --adaptive_scaling
 
 # Process with visualization
-python dagger.py input.wav output.wav --visualize --visualize_diff
+harmonydagger input.wav output.wav --visualize --visualize_diff
 
 # Batch process all WAV files with custom settings
-python dagger.py --batch_mode --input_dir ./music --output_dir ./protected --noise_scale 0.015 --adaptive_scaling
+harmonydagger --input_dir ./music --output_dir ./protected --noise_scale 0.015 --adaptive_scaling
+
+# Parallel batch processing for faster results
+harmonydagger --input_dir ./music --output_dir ./protected --parallel --workers 4
 ```
 
 ---
@@ -144,18 +192,17 @@ python dagger.py --batch_mode --input_dir ./music --output_dir ./protected --noi
 
 ## 📚 Dependencies
 
+All dependencies are automatically managed when installing via pip:
+
 - `numpy`: Numerical processing
 - `scipy`: Signal processing functions
-- `librosa`: Audio analysis
 - `soundfile`: Audio file I/O
 - `matplotlib`: Visualization
-- `typing`: Type annotations
 
-Install them all:
-
-```bash
-pip install numpy scipy librosa soundfile matplotlib
-```
+Optional development dependencies:
+- `pytest`: Testing
+- `black`: Code formatting
+- `isort`: Import sorting
 
 ---
 
@@ -175,6 +222,7 @@ pip install numpy scipy librosa soundfile matplotlib
 - Real-time processing capability
 - User interface for non-technical users
 - Evaluation against state-of-the-art AI music models
+- GPU acceleration for even faster parallel processing
 
 ---
 
@@ -188,3 +236,17 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 Contributions are welcome!  
 Fork the repository, improve the code, and submit a pull request.
+
+## 🛠 Performance Optimization
+
+HarmonyDagger includes several performance optimizations:
+
+- **Parallel Processing**: Process multiple files simultaneously using multiprocessing.
+- **Efficient Psychoacoustic Calculations**: Pre-calculated frequency transformations.
+- **Adaptive Resource Usage**: Automatically scales to available CPU cores.
+
+To get the best performance, use the `--parallel` flag for batch processing:
+
+```bash
+harmonydagger --input_dir ./large_collection --output_dir ./protected --parallel
+```

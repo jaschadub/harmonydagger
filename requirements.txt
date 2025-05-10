@@ -1,0 +1,10 @@
+# Core dependencies
+numpy>=1.20.0
+scipy>=1.7.0
+soundfile>=0.10.0
+matplotlib>=3.4.0
+
+# Development dependencies (optional)
+pytest>=6.0.0
+black>=21.5b2
+isort>=5.9.1
