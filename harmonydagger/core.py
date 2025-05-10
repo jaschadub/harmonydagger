@@ -44,7 +44,7 @@ def generate_psychoacoustic_noise(
     magnitude = np.abs(stft_matrix)
     phase = np.angle(stft_matrix)
     noise_magnitude = np.zeros_like(magnitude)
-    
+
     # Pre-calculate bark scale frequencies for efficiency
     bark_freqs = np.array([bark_scale(f) for f in freqs])
 
@@ -54,24 +54,24 @@ def generate_psychoacoustic_noise(
         dom_freq_hz = freqs[dom_freq_idx]
         # Use pre-calculated bark value instead of recalculating
         dom_freq_bark = bark_freqs[dom_freq_idx]
-        
+
         cb_width_hz = critical_band_width(dom_freq_hz)
         # Ensure masking_band is at least 1 bin wide
-        masking_band_bins = max(1, int(cb_width_hz / (sr / window_size))) 
+        masking_band_bins = max(1, int(cb_width_hz / (sr / window_size)))
 
         for offset in range(-masking_band_bins, masking_band_bins + 1):
             idx = dom_freq_idx + offset
             if 0 <= idx < magnitude.shape[0]:
                 freq_dist_bark = abs(bark_freqs[idx] - dom_freq_bark)
                 masking_attenuation_db = MASKING_CURVE_SLOPE * freq_dist_bark
-                
+
                 current_freq_hz = freqs[idx]
                 hearing_thresh_db = hearing_threshold(current_freq_hz)
                 hearing_thresh_mag = db_to_magnitude(hearing_thresh_db)
-                
+
                 signal_mag_db = magnitude_to_db(mag_frame[idx])
                 signal_mag_linear = db_to_magnitude(signal_mag_db)
-                
+
                 current_noise_scale = noise_scale
                 if adaptive_scaling:
                     signal_strength_above_thresh_db = signal_mag_db - hearing_thresh_db
@@ -79,7 +79,7 @@ def generate_psychoacoustic_noise(
                         adaptive_factor = ADAPTIVE_SCALE_NORM_MIN + \
                                           min(ADAPTIVE_SCALE_NORM_RANGE, signal_strength_above_thresh_db / ADAPTIVE_SIGNAL_STRENGTH_DIV)
                         current_noise_scale = noise_scale * adaptive_factor
-                
+
                 # Noise should be above hearing threshold but below original signal, attenuated by masking
                 # The (1.0 - masking_attenuation_db / 20.0) term is an approximation of masking effect in linear domain
                 # A more psychoacoustically accurate way would be to calculate masking threshold in dB,
@@ -92,7 +92,7 @@ def generate_psychoacoustic_noise(
                     hearing_thresh_mag,
                     NOISE_UPPER_BOUND_FACTOR * signal_mag_linear
                 )
-    
+
     noise_stft = noise_magnitude * np.exp(1j * phase)
     _, noise_audio = istft(
         noise_stft,
@@ -100,12 +100,12 @@ def generate_psychoacoustic_noise(
         nperseg=window_size,
         noverlap=overlap
     )
-    
+
     if len(noise_audio) > len(audio):
         noise_audio = noise_audio[:len(audio)]
     elif len(noise_audio) < len(audio):
         noise_audio = np.pad(noise_audio, (0, len(audio) - len(noise_audio)))
-    
+
     return noise_audio
 
 
