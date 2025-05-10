@@ -11,34 +11,25 @@ by Syed Irfan Ali Meerza, Lichao Sun, and Jian Liu
 """
 
 import argparse
-import sys
+import logging
 import os
+import sys
 
 # Ensure the package directory is in the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# import numpy as np # No longer directly used in this file
-# import librosa # No longer directly used in this file
-# import soundfile as sf # No longer directly used in this file
-# from scipy.signal import stft, istft # Moved to core.py
-# import matplotlib.pyplot as plt # Moved to visualization.py
-# import os # No longer directly used in this file
-# import time # No longer directly used in this file
-import logging
-# from typing import Tuple, List, Union, Optional # No longer directly used for function signatures here
-# from numpy.typing import NDArray # No longer directly used in this file
+# Import constants from the common module explicitly
+from harmonydagger.common import (
+    DEFAULT_HOP_SIZE,
+    DEFAULT_NOISE_SCALE,
+    DEFAULT_WINDOW_SIZE,
+)
+
+# Import file operation functions which orchestrate the rest
+from harmonydagger.file_operations import batch_process, process_audio_file
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Import constants from the common module
-from harmonydagger.common import *
-
-# Import file operation functions which orchestrate the rest
-from harmonydagger.file_operations import (
-    process_audio_file,
-    batch_process
-)
 
 # Note: Other modules like psychoacoustics, core, visualization are used by
 # file_operations and do not need to be directly imported here anymore.
@@ -48,7 +39,7 @@ from harmonydagger.file_operations import (
 def main(args):
     """
     Main execution function that processes command line arguments.
-    
+
     Args:
         args: Command line arguments parsed by argparse
     """
@@ -66,14 +57,14 @@ def main(args):
             args.visualize,
             args.visualize_diff
         )
-    
+
     # Batch processing mode
     else:
         if not args.output_dir:
             logging.error("Error: --output_dir is required for batch processing")
             parser.error("--output_dir is required for batch processing") # Keep parser error for CLI exit
             return
-        
+
         logging.info(f"Starting batch processing from input_dir: {args.input_dir}")
         batch_process(
             args.input_dir,
@@ -94,10 +85,10 @@ if __name__ == "__main__":
         description="HarmonyDagger - Make Music Unlearnable for Generative AI",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    
+
     # Input/output arguments
     input_group = parser.add_argument_group("Input/Output")
-    input_group.add_argument("--batch_mode", action="store_true", 
+    input_group.add_argument("--batch_mode", action="store_true",
                             help="Process all audio files in a directory")
     input_group.add_argument("--input_dir", type=str,
                             help="Directory containing input audio files (for batch mode)")
@@ -105,13 +96,13 @@ if __name__ == "__main__":
                             help="Directory to save processed files (for batch mode)")
     input_group.add_argument("--file_extension", type=str, default=".wav",
                             help="File extension to process in batch mode")
-    
+
     # Make input_file and output_file optional for batch mode
     input_group.add_argument("input_file", type=str, nargs="?",
                             help="Path to input audio file")
     input_group.add_argument("output_file", type=str, nargs="?",
                             help="Path to save perturbed audio file")
-    
+
     # Processing parameters
     param_group = parser.add_argument_group("Processing Parameters")
     param_group.add_argument("--window_size", type=int, default=DEFAULT_WINDOW_SIZE,
@@ -124,16 +115,16 @@ if __name__ == "__main__":
                             help="Use adaptive noise scaling based on signal strength")
     param_group.add_argument("--force_mono", action="store_true",
                             help="Force stereo input to mono before processing")
-    
+
     # Visualization options
     vis_group = parser.add_argument_group("Visualization")
     vis_group.add_argument("--visualize", action="store_true",
                           help="Show spectrogram comparison of original and perturbed audio")
     vis_group.add_argument("--visualize_diff", action="store_true",
                           help="Visualize the difference between original and perturbed audio")
-    
+
     args = parser.parse_args()
-    
+
     # Validate arguments
     if args.batch_mode:
         if not args.input_dir:
@@ -141,5 +132,5 @@ if __name__ == "__main__":
     else:
         if not args.input_file or not args.output_file:
             parser.error("input_file and output_file are required for single file mode")
-    
+
     main(args)

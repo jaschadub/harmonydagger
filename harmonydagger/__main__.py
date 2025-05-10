@@ -8,8 +8,8 @@ import os
 import sys
 from typing import List
 
-from .common import DEFAULT_WINDOW_SIZE, DEFAULT_HOP_SIZE, DEFAULT_NOISE_SCALE
-from .file_operations import process_audio_file, batch_process
+from .common import DEFAULT_HOP_SIZE, DEFAULT_NOISE_SCALE, DEFAULT_WINDOW_SIZE
+from .file_operations import batch_process, process_audio_file
 
 def setup_logging(verbose: bool = False) -> None:
     """Configure logging based on verbosity level."""
@@ -25,13 +25,13 @@ def parse_args(args: List[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='HarmonyDagger: Psychoacoustic noise generator for audio files'
     )
-    
+
     # Input/output options
-    parser.add_argument('input', 
+    parser.add_argument('input',
                       help='Input audio file or directory')
-    parser.add_argument('output', 
+    parser.add_argument('output',
                       help='Output file or directory')
-    
+
     # Processing parameters
     parser.add_argument('--window-size', type=int, default=DEFAULT_WINDOW_SIZE,
                       help=f'STFT window size (default: {DEFAULT_WINDOW_SIZE})')
@@ -39,7 +39,7 @@ def parse_args(args: List[str]) -> argparse.Namespace:
                       help=f'STFT hop size (default: {DEFAULT_HOP_SIZE})')
     parser.add_argument('--noise-scale', type=float, default=DEFAULT_NOISE_SCALE,
                       help=f'Noise scaling factor (default: {DEFAULT_NOISE_SCALE})')
-    
+
     # Audio options
     parser.add_argument('--force-mono', action='store_true',
                       help='Convert stereo files to mono before processing')
@@ -47,7 +47,7 @@ def parse_args(args: List[str]) -> argparse.Namespace:
                       help='Use adaptive noise scaling (default: True)')
     parser.add_argument('--no-adaptive-scaling', action='store_false', dest='adaptive_scaling',
                       help='Disable adaptive noise scaling')
-    
+
     # Batch processing
     parser.add_argument('--ext', default='.wav',
                       help='File extension to process in batch mode (default: .wav)')
@@ -55,32 +55,32 @@ def parse_args(args: List[str]) -> argparse.Namespace:
                       help='Use parallel processing for batch operations')
     parser.add_argument('--workers', type=int, default=None,
                       help='Number of worker processes for parallel processing (default: CPU count)')
-    
+
     # Visualization
     parser.add_argument('--visualize', action='store_true',
                       help='Generate spectrogram visualizations')
     parser.add_argument('--visualize-diff', action='store_true',
                       help='Generate difference visualizations')
-    
+
     # Other options
     parser.add_argument('--verbose', '-v', action='store_true',
                       help='Enable verbose output')
-    
+
     return parser.parse_args(args)
 
 def main() -> int:
     """Main entry point for the command-line interface."""
     args = parse_args(sys.argv[1:])
     setup_logging(args.verbose)
-    
+
     # Determine if input is a file or directory
     is_batch = os.path.isdir(args.input)
-    
+
     try:
         if is_batch:
             logging.info(f"Batch processing directory: {args.input}")
             os.makedirs(args.output, exist_ok=True)
-            
+
             batch_process(
                 args.input,
                 args.output,
@@ -98,7 +98,7 @@ def main() -> int:
         else:
             logging.info(f"Processing single file: {args.input}")
             vis_path = os.path.dirname(args.output) if args.visualize or args.visualize_diff else None
-            
+
             _, _, error = process_audio_file(
                 args.input,
                 args.output,
@@ -111,13 +111,13 @@ def main() -> int:
                 visualize_diff=args.visualize_diff,
                 visualization_path=vis_path
             )
-            
+
             if error:
                 logging.error(f"Processing failed: {error}")
                 return 1
-                
+
         return 0
-        
+
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
         return 1

@@ -1,8 +1,6 @@
 import pytest
-import numpy as np
-# from ..dagger import bark_scale, hearing_threshold, critical_band_width # Old import
-from harmonydagger.psychoacoustics import bark_scale, hearing_threshold, critical_band_width
-from harmonydagger.common import HZ_TO_KHZ # Import if constants are used directly in tests, or rely on functions using them
+
+from harmonydagger.psychoacoustics import bark_scale, critical_band_width, hearing_threshold
 
 # Test cases for bark_scale
 # Format: (input_hz, expected_bark_approx) - using approximate values for now

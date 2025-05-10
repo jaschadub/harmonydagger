@@ -1,11 +1,5 @@
 # Ruff configuration file for HarmonyDagger
 
-# Enable flake8-bugbear (`B`) rules.
-select = ["E", "F", "B", "I", "W"]
-
-# Never enforce line length violations (`E501`)
-ignore = ["E501"]
-
 # Target Python 3.8+
 target-version = "py38"
 
@@ -34,10 +28,6 @@ exclude = [
     "venv",
 ]
 
-# Allow autofix for all enabled rules (when `--fix`) is provided.
-fixable = ["ALL"]
-unfixable = []
-
 # Allow imports relative to the "harmonydagger" package
 src = ["harmonydagger"]
 
@@ -49,7 +39,18 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
 
-[isort]
+[lint]
+# Enable flake8-bugbear (`B`) rules.
+select = ["E", "F", "B", "I", "W"]
+
+# Never enforce line length violations (`E501`)
+ignore = ["E501"]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+[lint.isort]
 known-first-party = ["harmonydagger"]
 
 [lint.per-file-ignores]
