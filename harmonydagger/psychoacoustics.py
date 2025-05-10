@@ -18,7 +18,8 @@ def hearing_threshold(frequency_hz: float) -> float:
     Returns:
         Hearing threshold in dB SPL
     """
-    f_khz = frequency_hz / HZ_TO_KHZ
+    # Avoid divide by zero in power calculation with small epsilon
+    f_khz = max(frequency_hz / HZ_TO_KHZ, 1e-6)
     threshold_db = (
         HEARING_THRESH_C1 * (f_khz**HEARING_THRESH_F_POW) -
         HEARING_THRESH_C2 * np.exp(HEARING_THRESH_EXP_C1 * ((f_khz - HEARING_THRESH_F_OFFSET)**2))
@@ -86,4 +87,7 @@ def db_to_magnitude(db: NDArray[np.float64]) -> NDArray[np.float64]:
     Returns:
         Linear magnitude values
     """
-    return 10 ** (db / 20.0) * REFERENCE_PRESSURE # 20.0 is standard for dB SPL to pressure
+    # Protect against overflow by clipping extremely high dB values
+    # 350 dB corresponds to 10^17.5, close to float64 max (~10^308)
+    db_clipped = np.minimum(db, 350.0)
+    return 10 ** (db_clipped / 20.0) * REFERENCE_PRESSURE # 20.0 is standard for dB SPL to pressure

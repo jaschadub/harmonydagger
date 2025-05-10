@@ -44,20 +44,33 @@ Implementation of the [HarmonyCloak](https://mosis.eecs.utk.edu/harmonycloak.htm
 
 ## 📦 Installation
 
-### Method 1: Install from PyPI
+### Method 1: Install locally (until published to PyPI)
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/harmonydagger.git
+cd harmonydagger
+
+# Install the package
+pip install -e .
+```
+
+### Method 2: Install from PyPI (coming soon)
+
+In the future, the package will be available via:
 
 ```bash
 pip install harmonydagger
 ```
 
-### Method 2: Install from Source
+### Method 3: Manual Installation
 
-Clone the repository:
+If you don't want to install as a package:
 
 ```bash
 git clone https://github.com/yourusername/harmonydagger.git
 cd harmonydagger
-pip install -e .
+pip install -r requirements.txt  # If a requirements.txt file exists
 ```
 
 ---
