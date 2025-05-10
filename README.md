@@ -237,6 +237,17 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 Contributions are welcome!  
 Fork the repository, improve the code, and submit a pull request.
 
+### Continuous Integration
+
+This project uses GitHub Actions for continuous integration:
+
+- Automated testing on Python 3.8-3.12
+- Code quality checks with Ruff
+- Automated package builds
+- Automatic releases on tag creation
+
+When contributing, make sure your changes pass the existing tests and linting checks. See the workflow configuration in `.github/workflows/workflow.yml` for details.
+
 ## 🛠 Performance Optimization
 
 HarmonyDagger includes several performance optimizations:
