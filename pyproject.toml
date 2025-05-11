@@ -1,19 +1,19 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "harmonydagger"
 version = "0.2.0"
-description = "Making music unlearnable for generative AI with psychoacoustic noise"
+description = "A tool for protecting audio against AI voice cloning"
 readme = "README.md"
-authors = [
-    {name = "HarmonyDagger Team"}
-]
+requires-python = ">=3.8"
 license = {file = "LICENSE"}
+authors = [
+    {name = "HarmonyDagger Contributors"}
+]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -23,24 +23,30 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Multimedia :: Sound/Audio",
-    "Topic :: Multimedia :: Sound/Audio :: Analysis",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-keywords = ["audio", "music", "generative-ai", "protection", "privacy"]
-requires-python = ">=3.8"
 dependencies = [
     "numpy>=1.20.0",
     "scipy>=1.7.0",
-    "matplotlib>=3.5.0",
+    "librosa>=0.9.0",
     "soundfile>=0.10.0",
+    "tqdm>=4.60.0",
+    "matplotlib>=3.4.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "ruff>=0.0.257",
-    "build>=0.8.0",
+    "pytest-cov>=3.0.0",
+    "black>=23.0.0",
+    "isort>=5.10.0",
+    "mypy>=0.910",
+    "flake8>=4.0.0",
+    "twine>=4.0.0",
+]
+docs = [
+    "sphinx>=4.5.0",
+    "sphinx-rtd-theme>=1.0.0",
 ]
 
 [project.urls]
@@ -48,29 +54,16 @@ dev = [
 "Bug Tracker" = "https://github.com/yourusername/harmonydagger/issues"
 
 [project.scripts]
-harmonydagger = "harmonydagger.__main__:main"
+harmonydagger = "harmonydagger.cli:main"
 
 [tool.setuptools]
 packages = ["harmonydagger"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = "test_*.py"
-python_functions = "test_*"
-python_classes = "Test*"
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
 
-[tool.ruff]
-target-version = "py38"
-src = ["harmonydagger"]
-
-[tool.ruff.lint]
-select = ["E", "F", "B", "I", "W"]
-ignore = ["E501"]
-fixable = ["ALL"]
-unfixable = []
-
-[tool.ruff.lint.isort]
-known-first-party = ["harmonydagger"]
-
-[tool.ruff.lint.per-file-ignores]
-"**/__init__.py" = ["F401", "F403"]
+[tool.isort]
+profile = "black"
+line_length = 88

@@ -1,6 +1,26 @@
 """
 Common constants for the HarmonyDagger package.
 """
+import logging
+
+def setup_logger(name: str) -> logging.Logger:
+    """
+    Set up a logger with consistent formatting.
+    
+    Args:
+        name: Name for the logger, typically __name__
+        
+    Returns:
+        Configured logger
+    """
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+    return logger
 
 # Constants for psychoacoustic modeling
 REFERENCE_PRESSURE = 20e-6  # Reference pressure in air (20 μPa)

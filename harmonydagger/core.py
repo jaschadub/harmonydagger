@@ -46,7 +46,8 @@ def generate_psychoacoustic_noise(
     phase = np.angle(stft_matrix)
     noise_magnitude = np.zeros_like(magnitude)
 
-    # Pre-calculate bark scale frequencies for efficiency
+    # Performance optimization: Pre-calculate bark scale frequencies once instead of
+    # repeatedly calling bark_scale(f) for each frequency in the time loop
     bark_freqs = np.array([bark_scale(f) for f in freqs])
 
     for t in range(magnitude.shape[1]):

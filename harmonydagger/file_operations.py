@@ -1,98 +1,236 @@
 """
-File processing operations for HarmonyDagger.
+File operations and batch processing functions for HarmonyDagger.
 """
-import logging
-import multiprocessing
 import os
 import time
-from concurrent.futures import ProcessPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import partial
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import soundfile as sf
+from numpy.typing import NDArray
+import librosa
 
+from .core import apply_noise_multichannel
 from .common import (
     DEFAULT_HOP_SIZE,
     DEFAULT_NOISE_SCALE,
     DEFAULT_WINDOW_SIZE,
-    DIFFERENCE_SUFFIX,
-    SPECTROGRAM_SUFFIX,
 )
-from .core import apply_noise_multichannel
-from .visualization import visualize_difference, visualize_spectrograms
 
 
 def process_audio_file(
-    input_file: str,
-    output_file: str,
+    file_path: str,
+    output_path: Optional[str] = None,
     window_size: int = DEFAULT_WINDOW_SIZE,
     hop_size: int = DEFAULT_HOP_SIZE,
     noise_scale: float = DEFAULT_NOISE_SCALE,
-    force_mono: bool = False,
     adaptive_scaling: bool = True,
-    visualize: bool = False,
-    visualize_diff: bool = False,
-    visualization_path: Optional[str] = None
-) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+    force_mono: bool = False
+) -> Tuple[bool, str, float]:
     """
-    Process a single audio file and add psychoacoustic noise.
+    Process a single audio file with HarmonyDagger.
+    
+    Args:
+        file_path: Path to input audio file
+        output_path: Path to save processed audio. If None, creates a path based on input file.
+        window_size: STFT window size
+        hop_size: STFT hop size
+        noise_scale: Scale factor for noise (0.0 to 1.0)
+        adaptive_scaling: Whether to use adaptive scaling based on signal strength
+        force_mono: Convert stereo audio to mono before processing
+        
+    Returns:
+        Tuple of (success, output_file_path, processing_time_seconds)
     """
     start_time = time.time()
-
+    
     try:
-        logging.info(f"Loading input file: {input_file}")
-        audio, sr = sf.read(input_file, always_2d=True)
-        audio = audio.T  # (channels, samples)
-
-        original_size = os.path.getsize(input_file)
-
-        if force_mono and audio.shape[0] > 1:
-            logging.info("Converting to mono...")
-            audio = np.mean(audio, axis=0, keepdims=True)
-
-        logging.info(f"Generating psychoacoustic noise with scale: {noise_scale}")
-        additional_info = "with adaptive scaling" if adaptive_scaling else ""
-        logging.info(f"Processing audio {additional_info}...")
-
-        perturbed = apply_noise_multichannel(
-            audio, sr, window_size, hop_size, noise_scale, adaptive_scaling
-        )
-        perturbed = perturbed.T  # (samples, channels)
-
-        os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
-
-        logging.info(f"Saving perturbed audio to: {output_file}")
-        sf.write(output_file, perturbed, sr)
-
+        # Generate output path if not provided
+        if output_path is None:
+            base, ext = os.path.splitext(file_path)
+            output_path = f"{base}_protected{ext}"
+        
+        # Load audio
+        y, sr = librosa.load(file_path, sr=None, mono=force_mono)
+        
+        # Process audio (handle both mono and multi-channel)
+        if y.ndim > 1:  # Multi-channel
+            y_processed = apply_noise_multichannel(
+                y, sr, window_size, hop_size, noise_scale, adaptive_scaling
+            )
+        else:  # Mono
+            y_processed = apply_noise_multichannel(
+                y, sr, window_size, hop_size, noise_scale, adaptive_scaling
+            )
+        
+        # Save processed audio
+        import soundfile as sf
+        sf.write(output_path, y_processed, sr)
+        
         processing_time = time.time() - start_time
-        new_size = os.path.getsize(output_file)
-        file_size_ratio = new_size / original_size
-
-        if visualize or visualize_diff:
-            if visualization_path:
-                os.makedirs(visualization_path, exist_ok=True)
-
-            if visualize:
-                spec_output = None
-                if visualization_path:
-                    base_name = os.path.splitext(os.path.basename(output_file))[0]
-                    spec_output = os.path.join(visualization_path, f"{base_name}{SPECTROGRAM_SUFFIX}")
-                visualize_spectrograms(audio[0], perturbed.T[0], sr, spec_output)
-
-            if visualize_diff:
-                diff_output = None
-                if visualization_path:
-                    base_name = os.path.splitext(os.path.basename(output_file))[0]
-                    diff_output = os.path.join(visualization_path, f"{base_name}{DIFFERENCE_SUFFIX}")
-                visualize_difference(audio[0], perturbed.T[0], sr, diff_output)
-
-        logging.info(f"Process completed successfully in {processing_time:.2f} seconds for {input_file}.")
-        return processing_time, file_size_ratio, None
-
+        return True, output_path, processing_time
+    
     except Exception as e:
-        error_msg = f"Error processing {input_file}: {str(e)}"
-        logging.error(error_msg)
-        return None, None, error_msg
+        return False, str(e), time.time() - start_time
+
+
+def _process_file_for_batch(
+    file_path: str,
+    output_dir: Optional[str],
+    window_size: int,
+    hop_size: int,
+    noise_scale: float,
+    adaptive_scaling: bool,
+    force_mono: bool
+) -> Tuple[str, Tuple[bool, str, float]]:
+    """
+    Process a single audio file for batch processing.
+    
+    This is a helper function for parallel_batch_process.
+    It's defined at the module level to ensure it can be pickled for parallel processing.
+    
+    Args:
+        file_path: Path to input audio file
+        output_dir: Directory to save processed files (if None, save alongside input file)
+        window_size: STFT window size
+        hop_size: STFT hop size
+        noise_scale: Scale factor for noise
+        adaptive_scaling: Whether to use adaptive scaling
+        force_mono: Whether to convert to mono before processing
+        
+    Returns:
+        Tuple of (file_path, process_result) where process_result is (success, output_path/error, time)
+    """
+    if output_dir:
+        filename = os.path.basename(file_path)
+        base, ext = os.path.splitext(filename)
+        output_path = os.path.join(output_dir, f"{base}_protected{ext}")
+    else:
+        output_path = None
+        
+    return file_path, process_audio_file(
+        file_path,
+        output_path,
+        window_size,
+        hop_size,
+        noise_scale,
+        adaptive_scaling,
+        force_mono
+    )
+
+
+def parallel_batch_process(
+    file_paths: List[str],
+    output_dir: Optional[str] = None,
+    window_size: int = DEFAULT_WINDOW_SIZE,
+    hop_size: int = DEFAULT_HOP_SIZE,
+    noise_scale: float = DEFAULT_NOISE_SCALE,
+    adaptive_scaling: bool = True,
+    force_mono: bool = False,
+    max_workers: Optional[int] = None
+) -> Dict[str, Dict[str, Union[bool, str, float]]]:
+    """
+    Process multiple audio files in parallel using a process pool.
+    
+    This function enables efficient parallel processing of multiple audio files
+    using Python's ProcessPoolExecutor. Each file is processed independently
+    in a separate process, allowing for significantly faster batch processing
+    on multi-core CPUs.
+    
+    Args:
+        file_paths: List of input audio file paths
+        output_dir: Directory to save processed files. If None, saves alongside input files.
+        window_size: STFT window size
+        hop_size: STFT hop size
+        noise_scale: Scale factor for noise (0.0 to 1.0)
+        adaptive_scaling: Whether to use adaptive scaling based on signal strength
+        force_mono: Convert stereo audio to mono before processing
+        max_workers: Maximum number of worker processes. None = auto (uses CPU count)
+        
+    Returns:
+        Dictionary mapping input files to their processing results with format:
+        {
+            'file_path': {
+                'success': bool,
+                'output_path' or 'error': str,
+                'processing_time': float
+            }
+        }
+        
+    Examples:
+        >>> audio_files = recursive_find_audio_files('./audio_files')
+        >>> results = parallel_batch_process(
+        ...     audio_files,
+        ...     output_dir='./protected_audio',
+        ...     max_workers=4
+        ... )
+    """
+    results = {}
+    
+    # Create output directory if specified and doesn't exist
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # Create a partial function with fixed parameters
+    process_func = partial(
+        _process_file_for_batch,
+        output_dir=output_dir,
+        window_size=window_size,
+        hop_size=hop_size,
+        noise_scale=noise_scale,
+        adaptive_scaling=adaptive_scaling,
+        force_mono=force_mono
+    )
+    
+    # Execute in parallel using a process pool
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        future_to_path = {
+            executor.submit(process_func, path): path 
+            for path in file_paths
+        }
+        
+        for future in as_completed(future_to_path):
+            try:
+                input_path, (success, output_or_error, proc_time) = future.result()
+                results[input_path] = {
+                    "success": success,
+                    "output_path" if success else "error": output_or_error,
+                    "processing_time": proc_time
+                }
+            except Exception as e:
+                input_path = future_to_path[future]
+                results[input_path] = {
+                    "success": False,
+                    "error": str(e),
+                    "processing_time": 0.0
+                }
+    
+    return results
+
+
+def recursive_find_audio_files(
+    directory: str, 
+    extensions: List[str] = ['.wav', '.mp3', '.flac', '.ogg', '.m4a']
+) -> List[str]:
+    """
+    Recursively find audio files in a directory.
+    
+    Args:
+        directory: Directory path to search
+        extensions: List of audio file extensions to include
+        
+    Returns:
+        List of audio file paths
+    """
+    audio_files = []
+    
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if any(file.lower().endswith(ext) for ext in extensions):
+                audio_files.append(os.path.join(root, file))
+                
+    return audio_files
 
 
 def batch_process(
@@ -101,205 +239,75 @@ def batch_process(
     window_size: int = DEFAULT_WINDOW_SIZE,
     hop_size: int = DEFAULT_HOP_SIZE,
     noise_scale: float = DEFAULT_NOISE_SCALE,
-    force_mono: bool = False,
     adaptive_scaling: bool = True,
-    file_extension: str = ".wav",
-    visualize: bool = False,
-    visualize_diff: bool = False,
+    force_mono: bool = False,
     parallel: bool = False,
-    workers: Optional[int] = None
-) -> None:
+    max_workers: Optional[int] = None,
+    file_extension: str = '.wav'
+) -> Dict[str, Dict[str, Union[bool, str, float]]]:
     """
     Process all audio files in a directory.
-
+    
+    This is a backward-compatible function that maintains the previous API.
+    For new code, use parallel_batch_process instead.
+    
     Args:
         input_dir: Directory containing input audio files
         output_dir: Directory to save processed files
         window_size: STFT window size
         hop_size: STFT hop size
-        noise_scale: Noise scaling factor
-        force_mono: Convert stereo to mono before processing
-        adaptive_scaling: Enable adaptive noise scaling based on signal strength
-        file_extension: File extension to process (e.g., '.wav')
-        visualize: Generate spectrogram visualizations
-        visualize_diff: Generate difference visualizations
-        parallel: Use parallel processing (multiprocessing)
-        workers: Number of worker processes (None for CPU count)
+        noise_scale: Scale factor for noise (0.0 to 1.0)
+        adaptive_scaling: Whether to use adaptive scaling based on signal strength
+        force_mono: Convert stereo audio to mono before processing
+        parallel: Whether to process files in parallel
+        max_workers: Maximum number of worker processes (used only if parallel=True)
+        file_extension: File extension to process (.wav, .mp3, etc.)
+        
+    Returns:
+        Dictionary mapping input files to their processing results
     """
+    # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
-
-    vis_dir = os.path.join(output_dir, "visualizations")
-    if visualize or visualize_diff:
-        os.makedirs(vis_dir, exist_ok=True)
-
-    files = [f for f in os.listdir(input_dir) if f.lower().endswith(file_extension)]
-
-    if not files:
-        logging.warning(f"No {file_extension} files found in {input_dir}")
-        return
-
-    logging.info(f"Found {len(files)} {file_extension} files to process")
-
+    
+    # Get list of files to process
+    file_paths = []
+    for file in os.listdir(input_dir):
+        if file.lower().endswith(file_extension):
+            file_paths.append(os.path.join(input_dir, file))
+    
+    # Process files in parallel or sequentially
     if parallel:
-        _batch_process_parallel(
-            input_dir, output_dir, vis_dir, files,
-            window_size, hop_size, noise_scale,
-            force_mono, adaptive_scaling, visualize, visualize_diff,
-            workers
+        return parallel_batch_process(
+            file_paths,
+            output_dir=output_dir,
+            window_size=window_size,
+            hop_size=hop_size,
+            noise_scale=noise_scale,
+            adaptive_scaling=adaptive_scaling,
+            force_mono=force_mono,
+            max_workers=max_workers
         )
     else:
-        _batch_process_sequential(
-            input_dir, output_dir, vis_dir, files,
-            window_size, hop_size, noise_scale,
-            force_mono, adaptive_scaling, visualize, visualize_diff
-        )
-
-
-def _batch_process_sequential(
-    input_dir: str,
-    output_dir: str,
-    vis_dir: str,
-    files: List[str],
-    window_size: int,
-    hop_size: int,
-    noise_scale: float,
-    force_mono: bool,
-    adaptive_scaling: bool,
-    visualize: bool,
-    visualize_diff: bool
-) -> None:
-    """Sequential batch processing implementation."""
-    total_time = 0
-    successful_processing_count = 0
-    failed_files_info = []
-
-    for i, file_name in enumerate(files):
-        input_path = os.path.join(input_dir, file_name)
-        output_path = os.path.join(output_dir, file_name)
-
-        logging.info(f"Processing file {i+1}/{len(files)}: {file_name}")
-        proc_time, size_ratio, error_msg = process_audio_file(
-            input_path, output_path, window_size, hop_size, noise_scale,
-            force_mono, adaptive_scaling, visualize, visualize_diff, vis_dir
-        )
-
-        if error_msg is None and proc_time is not None and size_ratio is not None:
-            total_time += proc_time
-            successful_processing_count += 1
-        else:
-            failed_files_info.append((file_name, error_msg or "Unknown error"))
-
-    _report_batch_summary(
-        successful_processing_count, len(files), total_time,
-        output_dir, vis_dir, visualize or visualize_diff, failed_files_info
-    )
-
-
-def _process_file_wrapper(args: Dict[str, Any]) -> Tuple[str, Optional[float], Optional[float], Optional[str]]:
-    """Wrapper function for multiprocessing."""
-    file_name = args["file_name"]
-    input_path = args["input_path"]
-    output_path = args["output_path"]
-
-    proc_time, size_ratio, error_msg = process_audio_file(
-        input_path, output_path,
-        args["window_size"], args["hop_size"], args["noise_scale"],
-        args["force_mono"], args["adaptive_scaling"],
-        args["visualize"], args["visualize_diff"], args["vis_dir"]
-    )
-
-    return file_name, proc_time, size_ratio, error_msg
-
-
-def _batch_process_parallel(
-    input_dir: str,
-    output_dir: str,
-    vis_dir: str,
-    files: List[str],
-    window_size: int,
-    hop_size: int,
-    noise_scale: float,
-    force_mono: bool,
-    adaptive_scaling: bool,
-    visualize: bool,
-    visualize_diff: bool,
-    workers: Optional[int] = None
-) -> None:
-    """Parallel batch processing implementation using ProcessPoolExecutor."""
-    # Determine worker count (default to CPU count)
-    if workers is None:
-        workers = multiprocessing.cpu_count()
-
-    logging.info(f"Using parallel processing with {workers} workers")
-    start_time = time.time()
-
-    # Prepare arguments for each file
-    process_args = []
-    for file_name in files:
-        input_path = os.path.join(input_dir, file_name)
-        output_path = os.path.join(output_dir, file_name)
-
-        process_args.append({
-            "file_name": file_name,
-            "input_path": input_path,
-            "output_path": output_path,
-            "window_size": window_size,
-            "hop_size": hop_size,
-            "noise_scale": noise_scale,
-            "force_mono": force_mono,
-            "adaptive_scaling": adaptive_scaling,
-            "visualize": visualize,
-            "visualize_diff": visualize_diff,
-            "vis_dir": vis_dir
-        })
-
-    # Process files in parallel
-    successful_processing_count = 0
-    failed_files_info = []
-    total_processing_time = 0.0
-
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        for i, (file_name, proc_time, size_ratio, error_msg) in enumerate(
-            executor.map(_process_file_wrapper, process_args)
-        ):
-            logging.info(f"Completed {i+1}/{len(files)}: {file_name}")
-
-            if error_msg is None and proc_time is not None and size_ratio is not None:
-                successful_processing_count += 1
-                total_processing_time += proc_time
-            else:
-                failed_files_info.append((file_name, error_msg or "Unknown error"))
-
-    total_wall_time = time.time() - start_time
-    logging.info(f"Parallel processing completed in {total_wall_time:.2f} seconds wall time")
-    logging.info(f"Accumulated processing time: {total_processing_time:.2f} seconds")
-    logging.info(f"Speed improvement: {total_processing_time / max(1, total_wall_time):.2f}x")
-
-    _report_batch_summary(
-        successful_processing_count, len(files), total_processing_time,
-        output_dir, vis_dir, visualize or visualize_diff, failed_files_info
-    )
-
-
-def _report_batch_summary(
-    successful_count: int,
-    total_count: int,
-    total_time: float,
-    output_dir: str,
-    vis_dir: str,
-    has_visualizations: bool,
-    failed_files_info: List[Tuple[str, str]]
-) -> None:
-    """Report batch processing summary."""
-    logging.info("\n----- Batch Processing Summary -----")
-    logging.info(f"Successfully processed files: {successful_count}/{total_count}")
-    logging.info(f"Total processing time for successful files: {total_time:.2f} seconds")
-    logging.info(f"Processed files saved to: {output_dir}")
-    if has_visualizations:
-        logging.info(f"Visualizations saved to: {vis_dir}")
-
-    if failed_files_info:
-        logging.warning(f"\nEncountered errors with {len(failed_files_info)} file(s):")
-        for file_name, err_msg in failed_files_info:
-            logging.warning(f"  - {file_name}: {err_msg}")
-    logging.info("----- End of Batch Processing Summary -----")
+        results = {}
+        for file_path in file_paths:
+            filename = os.path.basename(file_path)
+            base, ext = os.path.splitext(filename)
+            output_path = os.path.join(output_dir, f"{base}_protected{ext}")
+            
+            success, output_or_error, proc_time = process_audio_file(
+                file_path,
+                output_path,
+                window_size=window_size,
+                hop_size=hop_size,
+                noise_scale=noise_scale,
+                adaptive_scaling=adaptive_scaling,
+                force_mono=force_mono
+            )
+            
+            results[file_path] = {
+                "success": success,
+                "output_path" if success else "error": output_or_error,
+                "processing_time": proc_time
+            }
+        
+        return results

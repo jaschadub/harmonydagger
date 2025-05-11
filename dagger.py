@@ -26,7 +26,7 @@ from harmonydagger.common import (
 )
 
 # Import file operation functions which orchestrate the rest
-from harmonydagger.file_operations import batch_process, process_audio_file
+from harmonydagger.file_operations import parallel_batch_process, process_audio_file, recursive_find_audio_files
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -36,51 +36,107 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # ===== Main Execution =====
 
-def main(args):
+def main(args=None):
     """
     Main execution function that processes command line arguments.
 
     Args:
         args: Command line arguments parsed by argparse
     """
+    # If no args provided, parse from command line
+    if args is None:
+        args = parse_args()
+
     # Single file processing
     if not args.batch_mode:
         logging.info(f"Starting single file processing for: {args.input_file}")
-        process_audio_file(
+        success, output_path, proc_time = process_audio_file(
             args.input_file,
             args.output_file,
             args.window_size,
             args.hop_size,
             args.noise_scale,
-            args.force_mono,
             args.adaptive_scaling,
-            args.visualize,
-            args.visualize_diff
+            args.force_mono
         )
+        
+        if success:
+            logging.info(f"Successfully processed file in {proc_time:.2f} seconds")
+            logging.info(f"Saved to: {output_path}")
+            
+            # Add visualization if requested
+            if args.visualize or args.visualize_diff:
+                try:
+                    from harmonydagger.visualization import create_audio_comparison
+                    create_audio_comparison(
+                        args.input_file, 
+                        output_path,
+                        visualize_diff=args.visualize_diff
+                    )
+                except Exception as e:
+                    logging.error(f"Error creating visualizations: {str(e)}")
+        else:
+            logging.error(f"Error processing file: {output_path}")
+            return 1
 
     # Batch processing mode
     else:
         if not args.output_dir:
             logging.error("Error: --output_dir is required for batch processing")
-            parser.error("--output_dir is required for batch processing") # Keep parser error for CLI exit
-            return
+            return 1
 
         logging.info(f"Starting batch processing from input_dir: {args.input_dir}")
-        batch_process(
-            args.input_dir,
+        
+        # Find audio files
+        extensions = [args.file_extension] if args.file_extension.startswith('.') else [f".{args.file_extension}"]
+        input_files = recursive_find_audio_files(args.input_dir, extensions)
+        
+        if not input_files:
+            logging.error(f"No {args.file_extension} files found in {args.input_dir}")
+            return 1
+            
+        logging.info(f"Found {len(input_files)} audio files to process")
+        
+        # Process files in parallel
+        results = parallel_batch_process(
+            input_files,
             args.output_dir,
             args.window_size,
             args.hop_size,
             args.noise_scale,
-            args.force_mono,
             args.adaptive_scaling,
-            args.file_extension,
-            args.visualize,
-            args.visualize_diff
+            args.force_mono,
+            args.max_workers
         )
+        
+        # Report results
+        successful = sum(1 for result in results.values() if result['success'])
+        failed = len(results) - successful
+        total_time = sum(result['processing_time'] for result in results.values())
+        
+        logging.info(f"Batch processing complete: {successful} succeeded, {failed} failed")
+        logging.info(f"Total processing time: {total_time:.2f} seconds")
+        
+        # Create visualizations if requested (for successful files only)
+        if args.visualize or args.visualize_diff:
+            try:
+                from harmonydagger.visualization import create_audio_comparison
+                for input_path, result in results.items():
+                    if result['success']:
+                        output_path = result['output_path']
+                        create_audio_comparison(
+                            input_path,
+                            output_path,
+                            visualize_diff=args.visualize_diff
+                        )
+            except Exception as e:
+                logging.error(f"Error creating visualizations: {str(e)}")
+                
+    return 0
 
 
-if __name__ == "__main__":
+def parse_args():
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="HarmonyDagger - Make Music Unlearnable for Generative AI",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -115,6 +171,8 @@ if __name__ == "__main__":
                             help="Use adaptive noise scaling based on signal strength")
     param_group.add_argument("--force_mono", action="store_true",
                             help="Force stereo input to mono before processing")
+    param_group.add_argument("--max_workers", type=int, default=None,
+                            help="Maximum number of worker processes for batch processing (default: auto)")
 
     # Visualization options
     vis_group = parser.add_argument_group("Visualization")
@@ -132,5 +190,9 @@ if __name__ == "__main__":
     else:
         if not args.input_file or not args.output_file:
             parser.error("input_file and output_file are required for single file mode")
+            
+    return args
 
-    main(args)
+
+if __name__ == "__main__":
+    sys.exit(main())

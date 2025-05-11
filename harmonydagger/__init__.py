@@ -1,8 +1,12 @@
-# HarmonyDagger Package
-# This file makes 'harmonydagger' a package.
+"""
+HarmonyDagger: A tool for protecting audio against AI voice cloning.
 
-# Optionally, define what gets imported when 'from harmonydagger import *' is used
-# Or define package-level attributes/functions.
-# For now, it can be kept simple.
+This package provides functions and tools to process audio files and add
+psychoacoustically-masked noise that helps protect against voice cloning while
+remaining imperceptible to human listeners.
+"""
 
-__version__ = "0.1.0" # Example version
+from .core import generate_psychoacoustic_noise, apply_noise_multichannel, apply_noise_to_audio
+from .file_operations import process_audio_file, parallel_batch_process, recursive_find_audio_files
+
+__version__ = "0.2.0"

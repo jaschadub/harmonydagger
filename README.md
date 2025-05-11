@@ -1,263 +1,173 @@
 # HarmonyDagger
 
-Implementation of the [HarmonyCloak](https://mosis.eecs.utk.edu/harmonycloak.html) technique, based on the research paper "HarmonyCloak: Making Music Unlearnable for Generative AI" by Syed Irfan Ali Meerza, Lichao Sun, and Jian Liu.
+HarmonyDagger is a tool for audio protection against generative AI models, introducing imperceptible psychoacoustic noise patterns that prevent effective machine learning while preserving human listening quality.
 
-`dagger.py` — Make Music Unlearnable for Generative AI.
+## Features
 
-**HarmonyDagger** introduces imperceptible psychoacoustic noise into audio files to make them unlearnable by generative AI models, while preserving perceptual quality for human listeners.
+- **Psychoacoustic Masking**: Uses principles of human auditory perception to generate strategic noise
+- **Adaptive Scaling**: Adjusts protection strength based on signal characteristics
+- **Multi-channel Support**: Works with both mono and stereo audio files
+- **Visualization Tools**: Optional visual analytics of audio perturbations
+- **Parallel Batch Processing**: Process multiple files efficiently using multiple CPU cores
+- **API Integration**: Use as a library or through the REST API
+- **PyPI Package**: Easy installation via pip
 
-<figure>
-  <img src="https://i.imgur.com/BIkRLMU.png" alt="How ChatGPT depicts HarmonyDagger" width="500"/>
-  <figcaption><em>How ChatGPT depicts HarmonyDagger</em></figcaption>
-</figure>
+## Installation
 
-
----
-
-## ✨ Features
-
-- **Advanced Psychoacoustic Masking**  
-  Uses Bark scale and critical band analysis to optimize noise placement within human hearing thresholds.
-
-- **Adaptive Noise Scaling**  
-  Dynamically adjusts noise levels based on signal strength for optimal protection.
-
-- **Multi-Channel Audio Support**  
-  Works with both mono and stereo WAV files.
-
-- **Batch Processing**  
-  Process entire directories of audio files with a single command.
-
-- **Detailed Visualizations**  
-  View spectrograms and waveform differences between original and protected audio.
-
-- **STFT-Based Processing**  
-  Uses Short-Time Fourier Transform for precise time-frequency domain noise injection.
-
-- **Comprehensive Error Handling**  
-  Robust file processing with detailed error reporting.
-
-- **Configurable CLI**  
-  Well-organized command-line interface with sensible defaults.
-
----
-
-## 📦 Installation
-
-### Method 1: Install locally (until published to PyPI)
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/harmonydagger.git
-cd harmonydagger
-
-# Install the package (v0.2.0)
-pip install -e .
-```
-
-### Method 2: Install from PyPI (coming soon)
-
-In the future, the package will be available via:
+### From PyPI
 
 ```bash
 pip install harmonydagger
 ```
 
-### Method 3: Manual Installation
-
-If you don't want to install as a package:
+### From Source
 
 ```bash
 git clone https://github.com/yourusername/harmonydagger.git
 cd harmonydagger
-pip install -r requirements.txt  # If a requirements.txt file exists
+pip install -e .
 ```
 
----
+## Usage
 
-## 🚀 Usage
-
-### From Command Line
-
-After installation, you can use HarmonyDagger directly from the command line:
+### Command Line Interface
 
 ```bash
-harmonydagger input.wav output.wav [OPTIONS]
+# Process a single audio file
+harmonydagger input.wav -o output.wav -n 0.1 -a
+
+# Process multiple files in parallel
+harmonydagger input_directory -o output_directory -j 4
+
+# Get help on all available options
+harmonydagger --help
 ```
 
-### As a Python Module
+### Python API
 
 ```python
-from harmonydagger.file_operations import process_audio_file, batch_process
+import librosa
+from harmonydagger.core import apply_noise_multichannel
 
-# Process single file
-process_audio_file('input.wav', 'output.wav', noise_scale=0.015)
+# Load audio file
+audio, sr = librosa.load('input.wav', sr=None)
 
-# Process directory
-batch_process('input_dir', 'output_dir', noise_scale=0.015, parallel=True)
+# Apply protection
+protected_audio = apply_noise_multichannel(
+    audio, sr, 
+    window_size=2048, 
+    hop_size=512,
+    noise_scale=0.1,
+    adaptive_scaling=True
+)
+
+# Save result
+librosa.output.write_wav('output.wav', protected_audio, sr)
 ```
 
-### Single File Processing
+### Batch Processing with Parallelization
 
-Process a single audio file:
+```python
+from harmonydagger.file_operations import parallel_batch_process, recursive_find_audio_files
 
+# Find all WAV files in a directory
+audio_files = recursive_find_audio_files('./audio_files', extensions=['.wav'])
+
+# Process files in parallel
+results = parallel_batch_process(
+    audio_files,
+    output_dir='./protected_audio',
+    window_size=2048,
+    hop_size=512,
+    noise_scale=0.1,
+    adaptive_scaling=True,
+    max_workers=4  # Use 4 CPU cores
+)
+
+# Print results
+for file_path, result in results.items():
+    if result['success']:
+        print(f"Successfully processed {file_path} in {result['processing_time']:.2f} seconds")
+    else:
+        print(f"Failed to process {file_path}: {result['error']}")
+```
+
+## API Server
+
+HarmonyDagger also comes with a REST API server for integration with web services:
+
+1. Clone the repository containing the API server:
 ```bash
-harmonydagger input.wav output.wav [OPTIONS]
+git clone https://github.com/yourusername/harmonydagger-api.git
+cd harmonydagger-api
 ```
 
-### Batch Processing
-
-Process all audio files in a directory:
-
+2. Set up environment:
 ```bash
-harmonydagger --input_dir /path/to/input --output_dir /path/to/output [OPTIONS]
+cp .env.example .env  # Edit as needed
 ```
 
-### Parallel Batch Processing
-
-Process files in parallel for significant speed improvements:
-
+3. Run with Docker:
 ```bash
-harmonydagger --input_dir /path/to/input --output_dir /path/to/output --parallel [OPTIONS]
+docker-compose up -d
 ```
 
-### Required Arguments (Single File Mode)
+4. Access the API at http://localhost:8000/api/v1/docs
 
-- `input_file`: Path to input WAV file.
-- `output_file`: Path to save the perturbed WAV file.
+## Command Line Options
 
-### Batch Processing Arguments
+```
+usage: harmonydagger [-h] [-o OUTPUT] [-w WINDOW_SIZE] [-s HOP_SIZE]
+                     [-n NOISE_SCALE] [-a] [-m] [-j JOBS] [-v] [--version]
+                     input
 
-- `--input_dir`: Directory containing input audio files
-- `--output_dir`: Directory to save processed files
-- `--ext`: File extension to process (default: ".wav")
-- `--parallel`: Enable parallel processing for batch operations
-- `--workers`: Number of worker processes for parallel processing (default: CPU count)
+positional arguments:
+  input                 Input audio file or directory containing audio files
 
-### Processing Options
-
-- `--window_size`: STFT window size (default: 1024)
-- `--hop_size`: STFT hop size (default: 512)
-- `--noise_scale`: Relative strength of the noise (default: 0.01)
-- `--adaptive_scaling`: Use adaptive noise scaling based on signal strength
-- `--force_mono`: Convert stereo audio to mono before processing
-
-### Visualization Options
-
-- `--visualize`: Show spectrogram comparison of original and perturbed audio
-- `--visualize_diff`: Visualize the difference between original and perturbed audio
-
-### Example Commands
-
-```bash
-# Basic protection with default settings
-harmonydagger input.wav output.wav
-
-# Apply stronger protection with adaptive scaling
-harmonydagger input.wav output.wav --noise_scale 0.02 --adaptive_scaling
-
-# Process with visualization
-harmonydagger input.wav output.wav --visualize --visualize_diff
-
-# Batch process all WAV files with custom settings
-harmonydagger --input_dir ./music --output_dir ./protected --noise_scale 0.015 --adaptive_scaling
-
-# Parallel batch processing for faster results
-harmonydagger --input_dir ./music --output_dir ./protected --parallel --workers 4
+options:
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Output file or directory (default: input_protected.wav)
+  -w WINDOW_SIZE, --window-size WINDOW_SIZE
+                        STFT window size (default: 2048)
+  -s HOP_SIZE, --hop-size HOP_SIZE
+                        STFT hop size (default: 512)
+  -n NOISE_SCALE, --noise-scale NOISE_SCALE
+                        Noise scale (0-1) (default: 0.1)
+  -a, --adaptive-scaling
+                        Use adaptive noise scaling based on signal strength
+  -m, --force-mono      Convert stereo to mono before processing
+  -j JOBS, --jobs JOBS  Number of parallel processing jobs (for batch processing) (default: 1)
+  -v, --verbose         Enable verbose output
+  --version             show program's version number and exit
 ```
 
----
+## How It Works
 
-## 🛠 How It Works
+HarmonyDagger works by analyzing the audio in the frequency domain using Short-Time Fourier Transform (STFT), then applying carefully calibrated noise based on psychoacoustic principles:
 
-1. **Psychoacoustic Analysis**  
-   Audio is analyzed using STFT and converted to psychoacoustic Bark scale.
+1. **Frequency Analysis**: Converts audio to time-frequency representation
+2. **Psychoacoustic Modeling**: Identifies perceptual masking thresholds
+3. **Strategic Perturbation**: Adds noise patterns imperceptible to humans
+4. **Adaptive Scaling**: Adjusts protection based on signal characteristics
 
-2. **Critical Band Calculation**  
-   Critical bands are identified based on dominant frequencies in each time window.
+## Contributing
 
-3. **Masking Threshold Determination**  
-   For each frequency bin, masking thresholds are calculated based on hearing model.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-4. **Adaptive Noise Generation**  
-   Noise is precisely generated to stay between the hearing threshold and masking threshold.
+## License
 
-5. **Multi-channel Processing**  
-   Each audio channel is processed independently to maintain stereo image.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-6. **Visualization (optional)**  
-   Spectrograms and difference analysis show the impact of protection.
+## Citation
 
----
+If you use HarmonyDagger in your research, please cite:
 
-## 📚 Dependencies
-
-All dependencies are automatically managed when installing via pip:
-
-- `numpy`: Numerical processing
-- `scipy`: Signal processing functions
-- `soundfile`: Audio file I/O
-- `matplotlib`: Visualization
-
-Optional development dependencies:
-- `pytest`: Testing
-- `black`: Code formatting
-- `isort`: Import sorting
-
----
-
-## 📌 Technical Details
-
-- **Bark Scale**: Used for psychoacoustic frequency mapping
-- **Critical Bands**: Calculated based on Zwicker's model
-- **Hearing Threshold**: Based on ISO 226:2003 equal-loudness contours
-- **Adaptive Scaling**: Adjusts noise based on signal-to-threshold ratio
-
----
-
-## 🔮 Future Work
-
-- Integration with common DAWs as plugins
-- Support for additional audio formats
-- Real-time processing capability
-- User interface for non-technical users
-- Evaluation against state-of-the-art AI music models
-- GPU acceleration for even faster parallel processing
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome!  
-Fork the repository, improve the code, and submit a pull request.
-
-### Continuous Integration
-
-This project uses GitHub Actions for continuous integration:
-
-- Automated testing on Python 3.8-3.12
-- Code quality checks with Ruff
-- Automated package builds
-- Automatic releases on tag creation
-
-When contributing, make sure your changes pass the existing tests and linting checks. See the workflow configuration in `.github/workflows/workflow.yml` for details.
-
-## 🛠 Performance Optimization
-
-HarmonyDagger includes several performance optimizations:
-
-- **Parallel Processing**: Process multiple files simultaneously using multiprocessing.
-- **Efficient Psychoacoustic Calculations**: Pre-calculated frequency transformations.
-- **Adaptive Resource Usage**: Automatically scales to available CPU cores.
-
-To get the best performance, use the `--parallel` flag for batch processing:
-
-```bash
-harmonydagger --input_dir ./large_collection --output_dir ./protected --parallel
 ```
+@misc{harmonydagger2025,
+  author = {HarmonyDagger Team},
+  title = {HarmonyDagger: Making Audio Content Unlearnable for AI},
+  year = {2025},
+  publisher = {GitHub},
+  url = {https://github.com/yourusername/harmonydagger}
+}
