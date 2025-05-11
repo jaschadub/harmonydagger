@@ -26,7 +26,11 @@ from harmonydagger.common import (
 )
 
 # Import file operation functions which orchestrate the rest
-from harmonydagger.file_operations import parallel_batch_process, process_audio_file, recursive_find_audio_files
+from harmonydagger.file_operations import (
+    parallel_batch_process,
+    process_audio_file,
+    recursive_find_audio_files,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -69,7 +73,7 @@ def main(args=None):
                 try:
                     from harmonydagger.visualization import create_audio_comparison
                     create_audio_comparison(
-                        args.input_file, 
+                        args.input_file,
                         output_path,
                         visualize_diff=args.visualize_diff
                     )

@@ -1,17 +1,18 @@
 """
 Unit tests for the file_operations module.
 """
-import unittest
 import os
-import tempfile
 import shutil
-import numpy as np
+import tempfile
+import unittest
+
 import librosa
+import numpy as np
 import soundfile as sf
 
 from harmonydagger.file_operations import (
-    process_audio_file,
     parallel_batch_process,
+    process_audio_file,
     recursive_find_audio_files,
 )
 

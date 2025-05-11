@@ -5,18 +5,16 @@ import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from functools import partial
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np
-from numpy.typing import NDArray
 import librosa
 
-from .core import apply_noise_multichannel
 from .common import (
     DEFAULT_HOP_SIZE,
     DEFAULT_NOISE_SCALE,
     DEFAULT_WINDOW_SIZE,
 )
+from .core import apply_noise_multichannel
 
 
 def process_audio_file(
@@ -186,7 +184,7 @@ def parallel_batch_process(
     # Execute in parallel using a process pool
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_path = {
-            executor.submit(process_func, path): path 
+            executor.submit(process_func, path): path
             for path in file_paths
         }
         
@@ -210,8 +208,8 @@ def parallel_batch_process(
 
 
 def recursive_find_audio_files(
-    directory: str, 
-    extensions: List[str] = ['.wav', '.mp3', '.flac', '.ogg', '.m4a']
+    directory: str,
+    extensions: Optional[List[str]] = None
 ) -> List[str]:
     """
     Recursively find audio files in a directory.
@@ -223,6 +221,9 @@ def recursive_find_audio_files(
     Returns:
         List of audio file paths
     """
+    if extensions is None:
+        extensions = ['.wav', '.mp3', '.flac', '.ogg', '.m4a']
+        
     audio_files = []
     
     for root, _, files in os.walk(directory):

@@ -3,14 +3,13 @@
 Command-line interface for HarmonyDagger.
 """
 import argparse
-import os
 import sys
 import time
 from pathlib import Path
 
 from harmonydagger import __version__
-from harmonydagger.file_operations import process_audio_file
 from harmonydagger.common import setup_logger
+from harmonydagger.file_operations import process_audio_file
 
 logger = setup_logger(__name__)
 
@@ -25,53 +24,53 @@ def main():
     parser.add_argument("input", help="Input audio file or directory containing audio files")
     parser.add_argument("-o", "--output", help="Output file or directory (default: input_protected.wav)")
     parser.add_argument(
-        "-w", 
-        "--window-size", 
-        type=int, 
+        "-w",
+        "--window-size",
+        type=int,
         default=2048,
         help="STFT window size"
     )
     parser.add_argument(
-        "-s", 
-        "--hop-size", 
-        type=int, 
+        "-s",
+        "--hop-size",
+        type=int,
         default=512,
         help="STFT hop size"
     )
     parser.add_argument(
-        "-n", 
-        "--noise-scale", 
-        type=float, 
+        "-n",
+        "--noise-scale",
+        type=float,
         default=0.1,
         help="Noise scale (0-1)"
     )
     parser.add_argument(
-        "-a", 
-        "--adaptive-scaling", 
+        "-a",
+        "--adaptive-scaling",
         action="store_true",
         help="Use adaptive noise scaling based on signal strength"
     )
     parser.add_argument(
-        "-m", 
-        "--force-mono", 
+        "-m",
+        "--force-mono",
         action="store_true",
         help="Convert stereo to mono before processing"
     )
     parser.add_argument(
-        "-j", 
-        "--jobs", 
-        type=int, 
+        "-j",
+        "--jobs",
+        type=int,
         default=1,
         help="Number of parallel processing jobs (for batch processing)"
     )
     parser.add_argument(
-        "-v", 
-        "--verbose", 
+        "-v",
+        "--verbose",
         action="store_true",
         help="Enable verbose output"
     )
     parser.add_argument(
-        "--version", 
+        "--version",
         action="version",
         version=f"HarmonyDagger {__version__}"
     )
@@ -149,8 +148,8 @@ def main():
         
         # Process files sequentially or in parallel
         if args.jobs > 1:
-            from concurrent.futures import ProcessPoolExecutor
             import multiprocessing
+            from concurrent.futures import ProcessPoolExecutor
             
             # Limit jobs to CPU count
             jobs = min(args.jobs, multiprocessing.cpu_count())

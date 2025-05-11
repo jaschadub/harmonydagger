@@ -43,8 +43,8 @@ line-ending = "auto"
 # Enable flake8-bugbear (`B`) rules.
 select = ["E", "F", "B", "I", "W"]
 
-# Never enforce line length violations (`E501`)
-ignore = ["E501"]
+# Ignore trailing whitespace errors (`W293`) and line length violations (`E501`).
+ignore = ["E501", "W293"]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]

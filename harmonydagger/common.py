@@ -3,6 +3,7 @@ Common constants for the HarmonyDagger package.
 """
 import logging
 
+
 def setup_logger(name: str) -> logging.Logger:
     """
     Set up a logger with consistent formatting.
