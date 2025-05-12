@@ -113,28 +113,6 @@ for file_path, result in results.items():
         print(f"Failed to process {file_path}: {result['error']}")
 ```
 
-## API Server
-
-HarmonyDagger also comes with a REST API server for integration with web services:
-
-1. Clone the repository containing the API server:
-```bash
-git clone https://github.com/jaschadub/harmonydagger-api.git
-cd harmonydagger-api
-```
-
-2. Set up environment:
-```bash
-cp .env.example .env  # Edit as needed
-```
-
-3. Run with Docker:
-```bash
-docker-compose up -d
-```
-
-4. Access the API at http://localhost:8000/api/v1/docs
-
 ## Command Line Options
 
 ```
@@ -193,5 +171,5 @@ If you use HarmonyDagger in your research, please cite:
   title = {HarmonyDagger: Making Audio Content Unlearnable for AI},
   year = {2025},
   publisher = {GitHub},
-  url = {https://github.com/yourusername/harmonydagger}
+  url = {https://github.com/jaschadub/harmonydagger}
 }
