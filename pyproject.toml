@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "harmonydagger"
-version = "0.2.0"
-description = "A tool for protecting audio against AI voice cloning"
+version = "0.3.0"
+description = "A tool for protecting audio against use in AI training"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
 authors = [
-    {name = "HarmonyDagger Contributors"}
+    {name = "Jascha Wanger"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -51,8 +51,8 @@ docs = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/harmonydagger"
-"Bug Tracker" = "https://github.com/yourusername/harmonydagger/issues"
+"Homepage" = "https://github.com/jaschadub/harmonydagger"
+"Bug Tracker" = "https://github.com/jaschadub/harmonydagger/issues"
 
 [project.scripts]
 harmonydagger = "harmonydagger.cli:main"
