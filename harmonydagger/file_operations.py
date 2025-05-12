@@ -1,6 +1,7 @@
 """
 File operations and batch processing functions for HarmonyDagger.
 """
+import logging
 import os
 import tempfile
 import time
@@ -18,6 +19,9 @@ from .common import (
     DEFAULT_WINDOW_SIZE,
 )
 from .core import apply_noise_multichannel
+
+# Set up module logger
+logger = logging.getLogger(__name__)
 
 
 def process_audio_file(
@@ -77,7 +81,7 @@ def process_audio_file(
                 from pydub.utils import which
                 if which("ffmpeg") is None and which("avconv") is None:
                     # Fall back to WAV if ffmpeg/avconv is not available
-                    print(f"Warning: ffmpeg/avconv not found. Falling back to WAV format.")
+                    logger.warning("ffmpeg/avconv not found. Falling back to WAV format.")
                     output_path = os.path.splitext(output_path)[0] + ".wav"
                     sf.write(output_path, y_processed, sr)
                 else:
@@ -92,7 +96,7 @@ def process_audio_file(
                     # Clean up temporary file
                     os.remove(temp_wav)
             except Exception as e:
-                print(f"Error converting to MP3: {str(e)}. Falling back to WAV format.")
+                logger.error(f"Error converting to MP3: {str(e)}. Falling back to WAV format.")
                 # Fall back to WAV format
                 output_path = os.path.splitext(output_path)[0] + ".wav"
                 sf.write(output_path, y_processed, sr)
