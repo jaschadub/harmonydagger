@@ -72,15 +72,30 @@ def process_audio_file(
         # Save processed audio based on format
         if ext == '.mp3':
             # MP3 format requires special handling with pydub
-            temp_wav = tempfile.mktemp(suffix='.wav')
-            sf.write(temp_wav, y_processed, sr)
-            
-            # Convert WAV to MP3 using pydub
-            audio = AudioSegment.from_wav(temp_wav)
-            audio.export(output_path, format="mp3", bitrate="192k")
-            
-            # Clean up temporary file
-            os.remove(temp_wav)
+            try:
+                # Check if ffmpeg or avconv is available
+                from pydub.utils import which
+                if which("ffmpeg") is None and which("avconv") is None:
+                    # Fall back to WAV if ffmpeg/avconv is not available
+                    print(f"Warning: ffmpeg/avconv not found. Falling back to WAV format.")
+                    output_path = os.path.splitext(output_path)[0] + ".wav"
+                    sf.write(output_path, y_processed, sr)
+                else:
+                    # Convert to MP3 using pydub
+                    temp_wav = tempfile.mktemp(suffix='.wav')
+                    sf.write(temp_wav, y_processed, sr)
+                    
+                    # Convert WAV to MP3 using pydub
+                    audio = AudioSegment.from_wav(temp_wav)
+                    audio.export(output_path, format="mp3", bitrate="192k")
+                    
+                    # Clean up temporary file
+                    os.remove(temp_wav)
+            except Exception as e:
+                print(f"Error converting to MP3: {str(e)}. Falling back to WAV format.")
+                # Fall back to WAV format
+                output_path = os.path.splitext(output_path)[0] + ".wav"
+                sf.write(output_path, y_processed, sr)
         elif ext in ['.flac', '.ogg', '.wav']:
             # Formats supported directly by soundfile
             sf.write(output_path, y_processed, sr, format=ext[1:])

@@ -8,6 +8,8 @@ HarmonyDagger is a tool for audio protection against generative AI models, intro
 - **Adaptive Scaling**: Adjusts protection strength based on signal characteristics
 - **Multi-channel Support**: Works with both mono and stereo audio files
 - **Multiple Audio Format Support**: Processes and outputs WAV, MP3, FLAC, and OGG files
+  - MP3 support requires ffmpeg to be installed on your system
+  - FLAC and OGG support is built-in
 - **Visualization Tools**: Optional visual analytics of audio perturbations
 - **Parallel Batch Processing**: Process multiple files efficiently using multiple CPU cores
 - **API Integration**: Use as a library or through the REST API
