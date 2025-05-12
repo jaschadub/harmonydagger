@@ -70,6 +70,13 @@ def main():
         help="Enable verbose output"
     )
     parser.add_argument(
+        "-f",
+        "--format",
+        choices=["wav", "mp3", "flac", "ogg", "all"],
+        default="all",
+        help="Specify audio format to process (when processing directories)"
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"HarmonyDagger {__version__}"
@@ -133,12 +140,28 @@ def main():
         logger.info(f"Processing all audio files in: {input_path}")
         logger.info(f"Output directory: {output_dir}")
         
-        # Find all audio files
-        audio_extensions = [".wav", ".mp3", ".flac", ".ogg"]
-        audio_files = [
-            f for f in input_path.glob("*")
-            if f.is_file() and f.suffix.lower() in audio_extensions
-        ]
+        # Determine which file extensions to process based on format argument
+        if args.format == "all":
+            audio_extensions = [".wav", ".mp3", ".flac", ".ogg"]
+            logger.info("Processing all supported audio formats (WAV, MP3, FLAC, OGG)")
+        else:
+            audio_extensions = [f".{args.format}"]
+            logger.info(f"Processing only {args.format.upper()} files")
+            
+        # Find audio files with specified extensions (case-insensitive)
+        audio_files = []
+        for ext in audio_extensions:
+            # Try lowercase extension
+            files = list(input_path.glob(f"*{ext}"))
+            audio_files.extend(files)
+            
+            # Try uppercase extension
+            upper_ext = ext.upper()
+            upper_files = list(input_path.glob(f"*{upper_ext}"))
+            audio_files.extend(upper_files)
+            
+            if files or upper_files:
+                logger.info(f"Found {len(files) + len(upper_files)} files with extension {ext}")
         
         if not audio_files:
             logger.error(f"No audio files found in {input_path}")

@@ -7,6 +7,7 @@ HarmonyDagger is a tool for audio protection against generative AI models, intro
 - **Psychoacoustic Masking**: Uses principles of human auditory perception to generate strategic noise
 - **Adaptive Scaling**: Adjusts protection strength based on signal characteristics
 - **Multi-channel Support**: Works with both mono and stereo audio files
+- **Multiple Audio Format Support**: Processes and outputs WAV, MP3, FLAC, and OGG files
 - **Visualization Tools**: Optional visual analytics of audio perturbations
 - **Parallel Batch Processing**: Process multiple files efficiently using multiple CPU cores
 - **API Integration**: Use as a library or through the REST API
@@ -23,7 +24,7 @@ pip install harmonydagger
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/harmonydagger.git
+git clone https://github.com/jaschadub/harmonydagger.git
 cd harmonydagger
 pip install -e .
 ```
@@ -38,6 +39,13 @@ harmonydagger input.wav -o output.wav -n 0.1 -a
 
 # Process multiple files in parallel
 harmonydagger input_directory -o output_directory -j 4
+
+# Process only MP3 files in a directory
+harmonydagger input_directory -o output_directory -f mp3
+
+# Process only FLAC and OGG files (use multiple commands)
+harmonydagger input_directory -o output_directory -f flac
+harmonydagger input_directory -o output_directory -f ogg
 
 # Get help on all available options
 harmonydagger --help
@@ -61,8 +69,18 @@ protected_audio = apply_noise_multichannel(
     adaptive_scaling=True
 )
 
-# Save result
-librosa.output.write_wav('output.wav', protected_audio, sr)
+# Save result (using soundfile for better format support)
+import soundfile as sf
+sf.write('output.wav', protected_audio, sr)
+
+# For MP3 output:
+# from pydub import AudioSegment
+# import numpy as np
+# import tempfile
+# 
+# temp_wav = tempfile.mktemp(suffix='.wav')
+# sf.write(temp_wav, protected_audio, sr)
+# AudioSegment.from_wav(temp_wav).export('output.mp3', format='mp3', bitrate='192k')
 ```
 
 ### Batch Processing with Parallelization
@@ -70,8 +88,11 @@ librosa.output.write_wav('output.wav', protected_audio, sr)
 ```python
 from harmonydagger.file_operations import parallel_batch_process, recursive_find_audio_files
 
-# Find all WAV files in a directory
-audio_files = recursive_find_audio_files('./audio_files', extensions=['.wav'])
+# Find all audio files in a directory (supports MP3, FLAC, OGG, and WAV)
+audio_files = recursive_find_audio_files('./audio_files')
+
+# Or specify only specific formats
+# audio_files = recursive_find_audio_files('./audio_files', extensions=['.mp3', '.flac'])
 
 # Process files in parallel
 results = parallel_batch_process(
@@ -98,7 +119,7 @@ HarmonyDagger also comes with a REST API server for integration with web service
 
 1. Clone the repository containing the API server:
 ```bash
-git clone https://github.com/yourusername/harmonydagger-api.git
+git clone https://github.com/jaschadub/harmonydagger-api.git
 cd harmonydagger-api
 ```
 
@@ -118,7 +139,8 @@ docker-compose up -d
 
 ```
 usage: harmonydagger [-h] [-o OUTPUT] [-w WINDOW_SIZE] [-s HOP_SIZE]
-                     [-n NOISE_SCALE] [-a] [-m] [-j JOBS] [-v] [--version]
+                     [-n NOISE_SCALE] [-a] [-m] [-j JOBS] [-v]
+                     [-f {wav,mp3,flac,ogg,all}] [--version]
                      input
 
 positional arguments:
@@ -139,6 +161,8 @@ options:
   -m, --force-mono      Convert stereo to mono before processing
   -j JOBS, --jobs JOBS  Number of parallel processing jobs (for batch processing) (default: 1)
   -v, --verbose         Enable verbose output
+  -f {wav,mp3,flac,ogg,all}, --format {wav,mp3,flac,ogg,all}
+                        Specify audio format to process (when processing directories) (default: all)
   --version             show program's version number and exit
 ```
 

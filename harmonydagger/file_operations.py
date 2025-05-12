@@ -3,11 +3,14 @@ File operations and batch processing functions for HarmonyDagger.
 """
 import os
 import time
+import tempfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
 
 import librosa
+import soundfile as sf
+from pydub import AudioSegment
 
 from .common import (
     DEFAULT_HOP_SIZE,
@@ -62,9 +65,28 @@ def process_audio_file(
                 y, sr, window_size, hop_size, noise_scale, adaptive_scaling
             )
         
-        # Save processed audio
-        import soundfile as sf
-        sf.write(output_path, y_processed, sr)
+        # Determine format from output file extension
+        _, ext = os.path.splitext(output_path)
+        ext = ext.lower()
+        
+        # Save processed audio based on format
+        if ext == '.mp3':
+            # MP3 format requires special handling with pydub
+            temp_wav = tempfile.mktemp(suffix='.wav')
+            sf.write(temp_wav, y_processed, sr)
+            
+            # Convert WAV to MP3 using pydub
+            audio = AudioSegment.from_wav(temp_wav)
+            audio.export(output_path, format="mp3", bitrate="192k")
+            
+            # Clean up temporary file
+            os.remove(temp_wav)
+        elif ext in ['.flac', '.ogg', '.wav']:
+            # Formats supported directly by soundfile
+            sf.write(output_path, y_processed, sr, format=ext[1:])
+        else:
+            # Default to WAV for unsupported formats
+            sf.write(output_path, y_processed, sr)
         
         processing_time = time.time() - start_time
         return True, output_path, processing_time
