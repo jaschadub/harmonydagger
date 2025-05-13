@@ -109,22 +109,58 @@ def main():
 
         start_time = time.time()
         
-        success, out_path, processing_time = process_audio_file(
-            str(input_path),
-            str(output_path),
-            window_size=args.window_size,
-            hop_size=args.hop_size,
-            noise_scale=args.noise_scale,
-            adaptive_scaling=args.adaptive_scaling,
-            force_mono=args.force_mono,
-        )
-        
-        if success:
-            logger.info(f"Successfully processed file in {processing_time:.2f}s")
-            logger.info(f"Output saved to: {out_path}")
-            return 0
-        else:
-            logger.error("Processing failed")
+        try:
+            # Check if file exists
+            if not input_path.exists():
+                logger.error(f"Input file does not exist: {input_path}")
+                return 1
+                
+            # Check if file is empty
+            if input_path.stat().st_size == 0:
+                logger.error(f"Input file is empty: {input_path}")
+                return 1
+                
+            # Verify file is a valid audio file
+            try:
+                import soundfile as sf
+                file_info = sf.info(str(input_path))
+                logger.debug(f"Audio file info: {file_info}")
+            except Exception as sf_error:
+                logger.error(f"Failed to read audio file: {str(sf_error)}")
+                return 1
+            
+            # Log details about the process
+            logger.debug(f"Processing parameters:")
+            logger.debug(f"  Window size: {args.window_size}")
+            logger.debug(f"  Hop size: {args.hop_size}")
+            logger.debug(f"  Noise scale: {args.noise_scale}")
+            logger.debug(f"  Adaptive scaling: {args.adaptive_scaling}")
+            logger.debug(f"  Force mono: {args.force_mono}")
+            
+            success, out_path, processing_time = process_audio_file(
+                str(input_path),
+                str(output_path),
+                window_size=args.window_size,
+                hop_size=args.hop_size,
+                noise_scale=args.noise_scale,
+                adaptive_scaling=args.adaptive_scaling,
+                force_mono=args.force_mono,
+                visualize=args.verbose,  # Generate visualizations when in verbose mode
+                visualize_diff=args.verbose,
+            )
+            
+            if success:
+                logger.info(f"Successfully processed file in {processing_time:.2f}s")
+                logger.info(f"Output saved to: {out_path}")
+                return 0
+            else:
+                logger.error(f"Processing failed: {out_path}")
+                return 1
+        except Exception as e:
+            logger.error(f"Processing failed: {str(e)}")
+            if args.verbose:
+                import traceback
+                logger.error(traceback.format_exc())
             return 1
 
     # Handle batch directory processing

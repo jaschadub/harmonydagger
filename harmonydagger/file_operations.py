@@ -31,7 +31,10 @@ def process_audio_file(
     hop_size: int = DEFAULT_HOP_SIZE,
     noise_scale: float = DEFAULT_NOISE_SCALE,
     adaptive_scaling: bool = True,
-    force_mono: bool = False
+    force_mono: bool = False,
+    visualize: bool = False,
+    visualize_diff: bool = False,
+    visualization_path: Optional[str] = None
 ) -> Tuple[bool, str, float]:
     """
     Process a single audio file with HarmonyDagger.
@@ -44,6 +47,9 @@ def process_audio_file(
         noise_scale: Scale factor for noise (0.0 to 1.0)
         adaptive_scaling: Whether to use adaptive scaling based on signal strength
         force_mono: Convert stereo audio to mono before processing
+        visualize: Whether to generate a spectrogram visualization
+        visualize_diff: Whether to generate a difference visualization
+        visualization_path: Directory to save visualizations, if None uses the output file directory
         
     Returns:
         Tuple of (success, output_file_path, processing_time_seconds)
@@ -60,52 +66,121 @@ def process_audio_file(
         y, sr = librosa.load(file_path, sr=None, mono=force_mono)
         
         # Process audio (handle both mono and multi-channel)
-        if y.ndim > 1:  # Multi-channel
-            y_processed = apply_noise_multichannel(
-                y, sr, window_size, hop_size, noise_scale, adaptive_scaling
-            )
-        else:  # Mono
-            y_processed = apply_noise_multichannel(
-                y, sr, window_size, hop_size, noise_scale, adaptive_scaling
-            )
+        try:
+            if y.ndim > 1:  # Multi-channel
+                y_processed = apply_noise_multichannel(
+                    y, sr, window_size, hop_size, noise_scale, adaptive_scaling
+                )
+            else:  # Mono
+                y_processed = apply_noise_multichannel(
+                    y, sr, window_size, hop_size, noise_scale, adaptive_scaling
+                )
+        except Exception as e:
+            logger.error(f"Audio processing error: {str(e)}")
+            import traceback
+            logger.debug(traceback.format_exc())
+            return False, str(e), time.time() - start_time
         
         # Determine format from output file extension
         _, ext = os.path.splitext(output_path)
         ext = ext.lower()
         
+        # Create output directory if it doesn't exist
+        output_dir = os.path.dirname(output_path)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+            logger.debug(f"Created output directory: {output_dir}")
+        
         # Save processed audio based on format
-        if ext == '.mp3':
-            # MP3 format requires special handling with pydub
-            try:
-                # Check if ffmpeg or avconv is available
-                from pydub.utils import which
-                if which("ffmpeg") is None and which("avconv") is None:
-                    # Fall back to WAV if ffmpeg/avconv is not available
-                    logger.warning("ffmpeg/avconv not found. Falling back to WAV format.")
+        try:
+            if ext == '.mp3':
+                # MP3 format requires special handling with pydub
+                try:
+                    # Check if ffmpeg or avconv is available
+                    from pydub.utils import which
+                    if which("ffmpeg") is None and which("avconv") is None:
+                        # Fall back to WAV if ffmpeg/avconv is not available
+                        logger.warning("ffmpeg/avconv not found. Falling back to WAV format.")
+                        output_path = os.path.splitext(output_path)[0] + ".wav"
+                        sf.write(output_path, y_processed, sr)
+                    else:
+                        # Convert to MP3 using pydub
+                        temp_wav = tempfile.mktemp(suffix='.wav')
+                        sf.write(temp_wav, y_processed, sr)
+                        
+                        # Convert WAV to MP3 using pydub
+                        audio = AudioSegment.from_wav(temp_wav)
+                        audio.export(output_path, format="mp3", bitrate="192k")
+                        
+                        # Clean up temporary file
+                        os.remove(temp_wav)
+                except Exception as e:
+                    logger.error(f"Error converting to MP3: {str(e)}. Falling back to WAV format.")
+                    # Fall back to WAV format
                     output_path = os.path.splitext(output_path)[0] + ".wav"
                     sf.write(output_path, y_processed, sr)
+            elif ext in ['.flac', '.ogg', '.wav']:
+                try:
+                    # Formats supported directly by soundfile
+                    if ext == '.wav':
+                        # Use our custom WAV utility for robust WAV file saving
+                        from .wav_utils import save_wav_file
+                        success = save_wav_file(output_path, y_processed, sr)
+                        if success:
+                            logger.debug(f"Saved audio as WAV using wav_utils: {output_path}")
+                        else:
+                            # If that still fails, try soundfile as a fallback
+                            logger.warning("Fallback to soundfile for WAV saving")
+                            sf.write(output_path, y_processed, sr, format='WAV')
+                    elif ext == '.flac':
+                        sf.write(output_path, y_processed, sr, format='FLAC')
+                        logger.debug(f"Saved audio as FLAC: {output_path}")
+                    elif ext == '.ogg':
+                        sf.write(output_path, y_processed, sr, format='OGG')
+                        logger.debug(f"Saved audio as OGG: {output_path}")
+                except Exception as format_error:
+                    logger.error(f"Error saving in {ext} format: {str(format_error)}. Falling back to WAV with .wav extension.")
+                    output_path = os.path.splitext(output_path)[0] + ".wav"
+                    
+                    # Use our custom WAV utility as a fallback
+                    from .wav_utils import save_wav_file
+                    if not save_wav_file(output_path, y_processed, sr):
+                        # If that still fails, try soundfile as a last resort
+                        sf.write(output_path, y_processed, sr, format='WAV')
+            else:
+                # Default to WAV for unsupported formats
+                logger.warning(f"Unsupported format: {ext}. Defaulting to WAV.")
+                if not ext:
+                    output_path = output_path + ".wav"
                 else:
-                    # Convert to MP3 using pydub
-                    temp_wav = tempfile.mktemp(suffix='.wav')
-                    sf.write(temp_wav, y_processed, sr)
-                    
-                    # Convert WAV to MP3 using pydub
-                    audio = AudioSegment.from_wav(temp_wav)
-                    audio.export(output_path, format="mp3", bitrate="192k")
-                    
-                    # Clean up temporary file
-                    os.remove(temp_wav)
-            except Exception as e:
-                logger.error(f"Error converting to MP3: {str(e)}. Falling back to WAV format.")
-                # Fall back to WAV format
-                output_path = os.path.splitext(output_path)[0] + ".wav"
-                sf.write(output_path, y_processed, sr)
-        elif ext in ['.flac', '.ogg', '.wav']:
-            # Formats supported directly by soundfile
-            sf.write(output_path, y_processed, sr, format=ext[1:])
-        else:
-            # Default to WAV for unsupported formats
-            sf.write(output_path, y_processed, sr)
+                    output_path = os.path.splitext(output_path)[0] + ".wav"
+                sf.write(output_path, y_processed, sr, format='WAV')
+                logger.debug(f"Saved audio in WAV format: {output_path}")
+        except Exception as e:
+            logger.error(f"Error saving audio: {str(e)}")
+            import traceback
+            logger.debug(traceback.format_exc())
+            return False, str(e), time.time() - start_time
+        
+        # Generate visualizations if requested
+        if visualize or visualize_diff:
+            try:
+                from .visualization import create_audio_comparison
+                
+                # Use visualization_path if provided, otherwise use the output file directory
+                vis_dir = visualization_path if visualization_path else os.path.dirname(output_path)
+                os.makedirs(vis_dir, exist_ok=True)
+                
+                create_audio_comparison(
+                    file_path,
+                    output_path,
+                    output_dir=vis_dir,
+                    visualize_spectrogram=visualize,
+                    visualize_diff=visualize_diff
+                )
+                logger.info(f"Generated visualizations in {vis_dir}")
+            except Exception as vis_error:
+                logger.error(f"Failed to generate visualizations: {str(vis_error)}")
         
         processing_time = time.time() - start_time
         return True, output_path, processing_time
@@ -121,7 +196,10 @@ def _process_file_for_batch(
     hop_size: int,
     noise_scale: float,
     adaptive_scaling: bool,
-    force_mono: bool
+    force_mono: bool,
+    visualize: bool = False,
+    visualize_diff: bool = False,
+    visualization_path: Optional[str] = None
 ) -> Tuple[str, Tuple[bool, str, float]]:
     """
     Process a single audio file for batch processing.
@@ -137,6 +215,9 @@ def _process_file_for_batch(
         noise_scale: Scale factor for noise
         adaptive_scaling: Whether to use adaptive scaling
         force_mono: Whether to convert to mono before processing
+        visualize: Whether to generate a spectrogram visualization
+        visualize_diff: Whether to generate a difference visualization
+        visualization_path: Directory to save visualizations (defaults to output_dir)
         
     Returns:
         Tuple of (file_path, process_result) where process_result is (success, output_path/error, time)
@@ -147,6 +228,9 @@ def _process_file_for_batch(
         output_path = os.path.join(output_dir, f"{base}_protected{ext}")
     else:
         output_path = None
+    
+    # Use output_dir as visualization_path if not specified
+    vis_path = visualization_path if visualization_path else output_dir
         
     return file_path, process_audio_file(
         file_path,
@@ -155,7 +239,10 @@ def _process_file_for_batch(
         hop_size,
         noise_scale,
         adaptive_scaling,
-        force_mono
+        force_mono,
+        visualize,
+        visualize_diff,
+        vis_path
     )
 
 
@@ -167,7 +254,10 @@ def parallel_batch_process(
     noise_scale: float = DEFAULT_NOISE_SCALE,
     adaptive_scaling: bool = True,
     force_mono: bool = False,
-    max_workers: Optional[int] = None
+    max_workers: Optional[int] = None,
+    visualize: bool = False,
+    visualize_diff: bool = False,
+    visualization_path: Optional[str] = None
 ) -> Dict[str, Dict[str, Union[bool, str, float]]]:
     """
     Process multiple audio files in parallel using a process pool.
@@ -186,6 +276,9 @@ def parallel_batch_process(
         adaptive_scaling: Whether to use adaptive scaling based on signal strength
         force_mono: Convert stereo audio to mono before processing
         max_workers: Maximum number of worker processes. None = auto (uses CPU count)
+        visualize: Whether to generate spectrogram visualizations
+        visualize_diff: Whether to generate difference visualizations
+        visualization_path: Directory to save visualizations. If None, uses output_dir
         
     Returns:
         Dictionary mapping input files to their processing results with format:
@@ -219,7 +312,10 @@ def parallel_batch_process(
         hop_size=hop_size,
         noise_scale=noise_scale,
         adaptive_scaling=adaptive_scaling,
-        force_mono=force_mono
+        force_mono=force_mono,
+        visualize=visualize,
+        visualize_diff=visualize_diff,
+        visualization_path=visualization_path
     )
     
     # Execute in parallel using a process pool
@@ -285,7 +381,10 @@ def batch_process(
     force_mono: bool = False,
     parallel: bool = False,
     max_workers: Optional[int] = None,
-    file_extension: str = '.wav'
+    file_extension: str = '.wav',
+    visualize: bool = False,
+    visualize_diff: bool = False,
+    visualization_path: Optional[str] = None
 ) -> Dict[str, Dict[str, Union[bool, str, float]]]:
     """
     Process all audio files in a directory.
@@ -304,6 +403,9 @@ def batch_process(
         parallel: Whether to process files in parallel
         max_workers: Maximum number of worker processes (used only if parallel=True)
         file_extension: File extension to process (.wav, .mp3, etc.)
+        visualize: Whether to generate spectrogram visualizations
+        visualize_diff: Whether to generate difference visualizations
+        visualization_path: Directory to save visualizations. If None, uses output_dir
         
     Returns:
         Dictionary mapping input files to their processing results
@@ -327,7 +429,10 @@ def batch_process(
             noise_scale=noise_scale,
             adaptive_scaling=adaptive_scaling,
             force_mono=force_mono,
-            max_workers=max_workers
+            max_workers=max_workers,
+            visualize=visualize,
+            visualize_diff=visualize_diff,
+            visualization_path=visualization_path
         )
     else:
         results = {}
@@ -343,7 +448,10 @@ def batch_process(
                 hop_size=hop_size,
                 noise_scale=noise_scale,
                 adaptive_scaling=adaptive_scaling,
-                force_mono=force_mono
+                force_mono=force_mono,
+                visualize=visualize,
+                visualize_diff=visualize_diff,
+                visualization_path=visualization_path
             )
             
             results[file_path] = {
