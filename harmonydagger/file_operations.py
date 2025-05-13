@@ -241,6 +241,9 @@ def process_audio_file(
                 
                 # Use visualization_path if provided, otherwise use the output file directory
                 vis_dir = visualization_path if visualization_path else os.path.dirname(output_path)
+                # Handle case where vis_dir is empty
+                if not vis_dir:
+                    vis_dir = '.'
                 os.makedirs(vis_dir, exist_ok=True)
                 
                 create_audio_comparison(

@@ -156,6 +156,9 @@ def main():
             if not vis_path:  # If empty, use current directory
                 vis_path = '.'
                 
+            # Ensure vis_path is a valid directory
+            os.makedirs(vis_path, exist_ok=True)
+                
             success, out_path, processing_time = process_audio_file(
                 str(input_path),
                 str(output_path),

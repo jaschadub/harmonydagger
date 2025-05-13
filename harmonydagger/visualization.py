@@ -119,6 +119,9 @@ def create_audio_comparison(
         if not output_dir:  # If still empty, use current directory
             output_dir = '.'
     
+    # Log the directory we're using
+    logging.debug(f"Visualization output directory resolved to: {output_dir}")
+    
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
