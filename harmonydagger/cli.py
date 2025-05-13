@@ -3,6 +3,7 @@
 Command-line interface for HarmonyDagger.
 """
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
@@ -150,6 +151,11 @@ def main():
             logger.debug(f"  Adaptive scaling: {args.adaptive_scaling}")
             logger.debug(f"  Force mono: {args.force_mono}")
             
+            # Set visualization path to output file directory
+            vis_path = os.path.dirname(str(output_path))
+            if not vis_path:  # If empty, use current directory
+                vis_path = '.'
+                
             success, out_path, processing_time = process_audio_file(
                 str(input_path),
                 str(output_path),
@@ -160,6 +166,7 @@ def main():
                 force_mono=args.force_mono,
                 visualize=args.visualize,
                 visualize_diff=args.visualize_diff,
+                visualization_path=vis_path
             )
             
             if success:
