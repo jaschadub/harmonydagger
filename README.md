@@ -120,7 +120,8 @@ for file_path, result in results.items():
 ```
 usage: harmonydagger [-h] [-o OUTPUT] [-w WINDOW_SIZE] [-s HOP_SIZE]
                      [-n NOISE_SCALE] [-a] [-m] [-j JOBS] [-v]
-                     [-f {wav,mp3,flac,ogg,all}] [--version]
+                     [-f {wav,mp3,flac,ogg,all}]
+                     [--visualize] [--visualize_diff] [--version]
                      input
 
 positional arguments:
@@ -143,6 +144,11 @@ options:
   -v, --verbose         Enable verbose output
   -f {wav,mp3,flac,ogg,all}, --format {wav,mp3,flac,ogg,all}
                         Specify audio format to process (when processing directories) (default: all)
+
+Visualization:
+  --visualize           Show spectrogram comparison of original and perturbed audio
+  --visualize_diff      Visualize the difference between original and perturbed audio
+
   --version             show program's version number and exit
 ```
 

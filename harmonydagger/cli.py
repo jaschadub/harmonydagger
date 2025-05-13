@@ -76,6 +76,19 @@ def main():
         default="all",
         help="Specify audio format to process (when processing directories)"
     )
+    # Visualization options
+    visualization_group = parser.add_argument_group('Visualization')
+    visualization_group.add_argument(
+        "--visualize",
+        action="store_true",
+        help="Show spectrogram comparison of original and perturbed audio"
+    )
+    visualization_group.add_argument(
+        "--visualize_diff",
+        action="store_true",
+        help="Visualize the difference between original and perturbed audio"
+    )
+
     parser.add_argument(
         "--version",
         action="version",
@@ -145,8 +158,8 @@ def main():
                 noise_scale=args.noise_scale,
                 adaptive_scaling=args.adaptive_scaling,
                 force_mono=args.force_mono,
-                visualize=args.verbose,  # Generate visualizations when in verbose mode
-                visualize_diff=args.verbose,
+                visualize=args.visualize,
+                visualize_diff=args.visualize_diff,
             )
             
             if success:
@@ -230,6 +243,8 @@ def main():
                             args.noise_scale,
                             args.adaptive_scaling,
                             args.force_mono,
+                            args.visualize,
+                            args.visualize_diff,
                         )
                     )
                 
@@ -258,6 +273,8 @@ def main():
                     noise_scale=args.noise_scale,
                     adaptive_scaling=args.adaptive_scaling,
                     force_mono=args.force_mono,
+                    visualize=args.visualize,
+                    visualize_diff=args.visualize_diff,
                 )
                 
                 if success:
