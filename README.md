@@ -163,6 +163,26 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## Changelog
+
+### v0.3.1
+- Fixed issue with WAV file format recognition and saving
+- Added robust file saving mechanism with multiple fallback options
+- Improved error handling and reporting
+- Enhanced directory path handling for visualizations
+- Added detailed debug logging for troubleshooting
+
+### v0.3.0
+- Added support for MP3, FLAC, and OGG formats
+- Implemented parallel batch processing
+- Added visualization tools
+- Improved performance with optimized algorithms
+
+### v0.2.0
+- Initial public release
+- Support for WAV files
+- Basic psychoacoustic noise generation
+
 ## Citation
 
 If you use HarmonyDagger in your research, please cite:
