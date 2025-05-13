@@ -165,6 +165,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Changelog
 
+### v0.3.2
+- Fixed MP3 format saving issues with multiple fallback options
+- Improved MP3 file handling and error recovery
+- Enhanced directory path handling for MP3 temporary files
+- Added direct ffmpeg execution as a last-resort fallback for MP3
+
 ### v0.3.1
 - Fixed issue with WAV file format recognition and saving
 - Added robust file saving mechanism with multiple fallback options
