@@ -17,4 +17,4 @@ from .file_operations import (
     recursive_find_audio_files,
 )
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"

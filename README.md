@@ -171,6 +171,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Changelog
 
+### v0.3.3
+- Added explicit CLI visualization options with --visualize and --visualize_diff flags
+- Fixed CLI help text to properly document visualization options
+- Fixed visualization options not being passed correctly in batch processing
+
 ### v0.3.2
 - Fixed MP3 format saving issues with multiple fallback options
 - Improved MP3 file handling and error recovery
