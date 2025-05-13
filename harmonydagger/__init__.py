@@ -1,8 +1,8 @@
 """
-HarmonyDagger: A tool for protecting audio against AI voice cloning.
+HarmonyDagger: A tool for protecting audio against AI
 
 This package provides functions and tools to process audio files and add
-psychoacoustically-masked noise that helps protect against voice cloning while
+psychoacoustically-masked noise that helps protect while
 remaining imperceptible to human listeners.
 """
 
@@ -17,4 +17,4 @@ from .file_operations import (
     recursive_find_audio_files,
 )
 
-__version__ = "0.3.3"
+__version__ = "0.3.5"
