@@ -10,6 +10,7 @@ from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
 
 import librosa
+import numpy as np
 import soundfile as sf
 from pydub import AudioSegment
 
@@ -102,23 +103,94 @@ def process_audio_file(
                         # Fall back to WAV if ffmpeg/avconv is not available
                         logger.warning("ffmpeg/avconv not found. Falling back to WAV format.")
                         output_path = os.path.splitext(output_path)[0] + ".wav"
-                        sf.write(output_path, y_processed, sr)
+                        # Use our robust WAV saving function
+                        from .wav_utils import save_wav_file
+                        if not save_wav_file(output_path, y_processed, sr):
+                            raise Exception("Failed to save WAV fallback file")
                     else:
-                        # Convert to MP3 using pydub
-                        temp_wav = tempfile.mktemp(suffix='.wav')
-                        sf.write(temp_wav, y_processed, sr)
+                        # Use our robust WAV utility for the temporary file
+                        from .wav_utils import save_wav_file
+                        temp_wav_path = os.path.join(tempfile.gettempdir(), f"harmonydagger_temp_{int(time.time())}.wav")
+                        logger.debug(f"Creating temporary WAV file: {temp_wav_path}")
                         
-                        # Convert WAV to MP3 using pydub
-                        audio = AudioSegment.from_wav(temp_wav)
-                        audio.export(output_path, format="mp3", bitrate="192k")
+                        if not save_wav_file(temp_wav_path, y_processed, sr):
+                            # If our utility fails, try soundfile directly
+                            logger.warning("Using soundfile for temporary WAV")
+                            sf.write(temp_wav_path, y_processed, sr, format='WAV')
+                        
+                        try:
+                            # Convert WAV to MP3 using pydub with raw conversion 
+                            # (bypass potential file format recognition issues)
+                            logger.debug(f"Converting WAV to MP3: {output_path}")
+                            
+                            # Create output directory if it doesn't exist
+                            os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+                            
+                            # Use raw conversion with explicit parameters instead of from_wav
+                            with open(temp_wav_path, 'rb') as wav_file:
+                                wav_data = wav_file.read()
+                            
+                            # Create audio segment from raw PCM data
+                            raw_audio = AudioSegment(
+                                data=wav_data,
+                                sample_width=2,  # 16-bit (2 bytes)
+                                frame_rate=sr,
+                                channels=2 if y_processed.ndim > 1 else 1
+                            )
+                            
+                            # Export to MP3
+                            raw_audio.export(output_path, format="mp3", bitrate="192k")
+                            logger.debug(f"Successfully created MP3 file: {output_path}")
+                        except Exception as mp3_error:
+                            # If MP3 export fails, try a different approach
+                            logger.error(f"Error in MP3 export: {str(mp3_error)}")
+                            logger.warning("Trying alternative MP3 encoding method")
+                            
+                            # Try using ffmpeg directly as a last resort
+                            try:
+                                import subprocess
+                                cmd = [
+                                    "ffmpeg", "-y", "-i", temp_wav_path, 
+                                    "-codec:a", "libmp3lame", "-qscale:a", "2", 
+                                    output_path
+                                ]
+                                subprocess.run(cmd, check=True, capture_output=True)
+                                logger.debug(f"Created MP3 using ffmpeg command: {output_path}")
+                            except Exception as ffmpeg_error:
+                                logger.error(f"ffmpeg conversion failed: {str(ffmpeg_error)}")
+                                raise
                         
                         # Clean up temporary file
-                        os.remove(temp_wav)
+                        try:
+                            os.remove(temp_wav_path)
+                            logger.debug(f"Removed temporary WAV file: {temp_wav_path}")
+                        except Exception as rm_error:
+                            logger.warning(f"Failed to remove temporary file: {str(rm_error)}")
                 except Exception as e:
                     logger.error(f"Error converting to MP3: {str(e)}. Falling back to WAV format.")
                     # Fall back to WAV format
                     output_path = os.path.splitext(output_path)[0] + ".wav"
-                    sf.write(output_path, y_processed, sr)
+                    
+                    # Use our robust WAV utility
+                    from .wav_utils import save_wav_file
+                    if not save_wav_file(output_path, y_processed, sr):
+                        # Last resort: try direct numpy array to file approach
+                        logger.warning("Trying direct file write approach")
+                        try:
+                            # Convert to int16 and write directly
+                            audio_int16 = np.clip(y_processed * 32767, -32768, 32767).astype(np.int16)
+                            with open(output_path, 'wb') as f:
+                                import wave
+                                wf = wave.open(f, 'wb')
+                                wf.setnchannels(1 if y_processed.ndim == 1 else y_processed.shape[0])
+                                wf.setsampwidth(2)  # 16-bit
+                                wf.setframerate(sr)
+                                wf.writeframes(audio_int16.tobytes())
+                                wf.close()
+                            logger.debug(f"Wrote WAV file directly: {output_path}")
+                        except Exception as direct_error:
+                            logger.error(f"Direct WAV writing failed: {str(direct_error)}")
+                            raise
             elif ext in ['.flac', '.ogg', '.wav']:
                 try:
                     # Formats supported directly by soundfile
