@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "harmonydagger"
-version = "0.3.3"
+version = "0.3.4"
 description = "A tool for protecting audio against use in AI training"
 readme = "README.md"
 requires-python = ">=3.8"
