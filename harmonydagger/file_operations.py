@@ -42,6 +42,7 @@ def process_audio_file(
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
     use_ensemble: bool = False,
+    use_gpu: bool = False,
 ) -> Tuple[bool, str, float]:
     """
     Process a single audio file with HarmonyDagger.
@@ -85,6 +86,7 @@ def process_audio_file(
                 use_phase_perturbation=use_phase_perturbation,
                 use_temporal_masking=use_temporal_masking,
                 use_ensemble=use_ensemble,
+                use_gpu=use_gpu,
             )
         except Exception as e:
             logger.error(f"Audio processing error: {str(e)}")
@@ -263,6 +265,7 @@ def _process_file_for_batch(
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
     use_ensemble: bool = False,
+    use_gpu: bool = False,
 ) -> Tuple[str, Tuple[bool, str, float]]:
     """
     Process a single audio file for batch processing.
@@ -295,6 +298,7 @@ def _process_file_for_batch(
         use_phase_perturbation=use_phase_perturbation,
         use_temporal_masking=use_temporal_masking,
         use_ensemble=use_ensemble,
+        use_gpu=use_gpu,
     )
 
 
@@ -315,6 +319,7 @@ def parallel_batch_process(
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
     use_ensemble: bool = False,
+    use_gpu: bool = False,
 ) -> Dict[str, Dict[str, Union[bool, str, float]]]:
     """
     Process multiple audio files in parallel using a process pool.
@@ -340,6 +345,7 @@ def parallel_batch_process(
         use_phase_perturbation=use_phase_perturbation,
         use_temporal_masking=use_temporal_masking,
         use_ensemble=use_ensemble,
+        use_gpu=use_gpu,
     )
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -406,6 +412,7 @@ def batch_process(
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
     use_ensemble: bool = False,
+    use_gpu: bool = False,
 ) -> Dict[str, Dict[str, Union[bool, str, float]]]:
     """
     Process all audio files in a directory.
@@ -438,6 +445,7 @@ def batch_process(
             use_phase_perturbation=use_phase_perturbation,
             use_temporal_masking=use_temporal_masking,
             use_ensemble=use_ensemble,
+            use_gpu=use_gpu,
         )
     else:
         results = {}
@@ -462,6 +470,7 @@ def batch_process(
                 use_phase_perturbation=use_phase_perturbation,
                 use_temporal_masking=use_temporal_masking,
                 use_ensemble=use_ensemble,
+                use_gpu=use_gpu,
             )
 
             results[file_path] = {

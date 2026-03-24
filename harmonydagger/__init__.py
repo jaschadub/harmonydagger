@@ -19,6 +19,7 @@ from .file_operations import (
     process_audio_file,
     recursive_find_audio_files,
 )
+from .gpu import is_gpu_available
 from .phase import generate_phase_perturbation
 from .robustness import augment_and_check_survival, simulate_mp3_compression
 from .temporal_masking import apply_temporal_masking

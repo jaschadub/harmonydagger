@@ -79,6 +79,11 @@ def main():
         help="Use ensemble of perturbations targeting different AI architectures"
     )
     parser.add_argument(
+        "--gpu",
+        action="store_true",
+        help="Use PyTorch GPU acceleration (requires: pip install torch)"
+    )
+    parser.add_argument(
         "--robust",
         action="store_true",
         help="Test perturbation robustness against common transforms"
@@ -212,6 +217,7 @@ def main():
                 use_phase_perturbation=args.phase,
                 use_temporal_masking=args.temporal_masking,
                 use_ensemble=args.ensemble,
+                use_gpu=args.gpu,
             )
 
             if success:
@@ -295,6 +301,7 @@ def main():
                             use_phase_perturbation=args.phase,
                             use_temporal_masking=args.temporal_masking,
                             use_ensemble=args.ensemble,
+                            use_gpu=args.gpu,
                         )
                     )
 

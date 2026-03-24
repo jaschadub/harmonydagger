@@ -126,6 +126,7 @@ def generate_protected_audio(
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
     use_ensemble: bool = False,
+    use_gpu: bool = False,
 ) -> NDArray[np.float64]:
     """
     Generate fully protected audio combining all perturbation techniques.
@@ -147,36 +148,40 @@ def generate_protected_audio(
         use_temporal_masking: Add temporal forward masking noise.
         use_ensemble: Use ensemble of perturbations targeting different
             AI architectures (spectral, mel-band, embedding).
+        use_gpu: Use PyTorch GPU acceleration for noise generation.
 
     Returns:
         Protected audio signal.
     """
+    if use_gpu:
+        from .gpu import generate_protected_audio_gpu
+        return generate_protected_audio_gpu(
+            audio, sr, window_size, hop_size, noise_scale, adaptive_scaling,
+            dry_wet, vocal_mode, use_phase_perturbation, use_temporal_masking,
+            use_ensemble
+        )
+
     from .phase import generate_phase_perturbation
     from .temporal_masking import apply_temporal_masking
 
     if use_ensemble:
-        # Ensemble mode: replace base noise with multi-strategy ensemble
         from .ensemble import generate_ensemble_perturbation
         noise = generate_ensemble_perturbation(
             audio, sr, window_size, hop_size, noise_scale
         )
     else:
-        # Standard single-strategy psychoacoustic noise
         noise = generate_psychoacoustic_noise(
             audio, sr, window_size, hop_size, noise_scale, adaptive_scaling, vocal_mode
         )
 
-    # Layer phase perturbation
     if use_phase_perturbation:
         phase_noise = generate_phase_perturbation(audio, sr, window_size, hop_size)
         noise = noise + phase_noise
 
-    # Layer temporal masking noise
     if use_temporal_masking:
         temporal_noise = apply_temporal_masking(audio, sr, noise_scale=noise_scale * 0.5)
         noise = noise + temporal_noise
 
-    # Apply dry/wet mix
     protected = audio + dry_wet * noise
     return np.clip(protected, -1.0, 1.0)
 
@@ -193,6 +198,7 @@ def apply_noise_multichannel(
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
     use_ensemble: bool = False,
+    use_gpu: bool = False,
 ) -> NDArray[np.float64]:
     """
     Process multi-channel audio by applying psychoacoustic noise to each channel.
@@ -201,7 +207,7 @@ def apply_noise_multichannel(
         return generate_protected_audio(
             audio, sr, window_size, hop_size, noise_scale, adaptive_scaling,
             dry_wet, vocal_mode, use_phase_perturbation, use_temporal_masking,
-            use_ensemble
+            use_ensemble, use_gpu
         )
     else:  # Multi-channel
         noisy_channels = []
@@ -210,7 +216,7 @@ def apply_noise_multichannel(
             noisy_channel = generate_protected_audio(
                 channel_audio, sr, window_size, hop_size, noise_scale, adaptive_scaling,
                 dry_wet, vocal_mode, use_phase_perturbation, use_temporal_masking,
-                use_ensemble
+                use_ensemble, use_gpu
             )
             noisy_channels.append(noisy_channel)
         return np.vstack(noisy_channels)
