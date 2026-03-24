@@ -74,6 +74,11 @@ def main():
         help="Add temporal forward masking noise"
     )
     parser.add_argument(
+        "--ensemble",
+        action="store_true",
+        help="Use ensemble of perturbations targeting different AI architectures"
+    )
+    parser.add_argument(
         "--robust",
         action="store_true",
         help="Test perturbation robustness against common transforms"
@@ -206,6 +211,7 @@ def main():
                 vocal_mode=args.vocal_mode,
                 use_phase_perturbation=args.phase,
                 use_temporal_masking=args.temporal_masking,
+                use_ensemble=args.ensemble,
             )
 
             if success:
@@ -288,6 +294,7 @@ def main():
                             vocal_mode=args.vocal_mode,
                             use_phase_perturbation=args.phase,
                             use_temporal_masking=args.temporal_masking,
+                            use_ensemble=args.ensemble,
                         )
                     )
 

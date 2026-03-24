@@ -125,12 +125,14 @@ def generate_protected_audio(
     vocal_mode: bool = False,
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
+    use_ensemble: bool = False,
 ) -> NDArray[np.float64]:
     """
     Generate fully protected audio combining all perturbation techniques.
 
     This is the main orchestrator that composes magnitude noise, phase
-    perturbation, and temporal masking into a single protection signal.
+    perturbation, temporal masking, and ensemble attacks into a single
+    protection signal.
 
     Args:
         audio: Input audio (mono channel).
@@ -143,6 +145,8 @@ def generate_protected_audio(
         vocal_mode: Optimize for vocal frequency range.
         use_phase_perturbation: Add phase-based perturbation.
         use_temporal_masking: Add temporal forward masking noise.
+        use_ensemble: Use ensemble of perturbations targeting different
+            AI architectures (spectral, mel-band, embedding).
 
     Returns:
         Protected audio signal.
@@ -150,10 +154,17 @@ def generate_protected_audio(
     from .phase import generate_phase_perturbation
     from .temporal_masking import apply_temporal_masking
 
-    # Base psychoacoustic noise
-    noise = generate_psychoacoustic_noise(
-        audio, sr, window_size, hop_size, noise_scale, adaptive_scaling, vocal_mode
-    )
+    if use_ensemble:
+        # Ensemble mode: replace base noise with multi-strategy ensemble
+        from .ensemble import generate_ensemble_perturbation
+        noise = generate_ensemble_perturbation(
+            audio, sr, window_size, hop_size, noise_scale
+        )
+    else:
+        # Standard single-strategy psychoacoustic noise
+        noise = generate_psychoacoustic_noise(
+            audio, sr, window_size, hop_size, noise_scale, adaptive_scaling, vocal_mode
+        )
 
     # Layer phase perturbation
     if use_phase_perturbation:
@@ -181,6 +192,7 @@ def apply_noise_multichannel(
     vocal_mode: bool = False,
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
+    use_ensemble: bool = False,
 ) -> NDArray[np.float64]:
     """
     Process multi-channel audio by applying psychoacoustic noise to each channel.
@@ -188,7 +200,8 @@ def apply_noise_multichannel(
     if audio.ndim == 1:  # Mono
         return generate_protected_audio(
             audio, sr, window_size, hop_size, noise_scale, adaptive_scaling,
-            dry_wet, vocal_mode, use_phase_perturbation, use_temporal_masking
+            dry_wet, vocal_mode, use_phase_perturbation, use_temporal_masking,
+            use_ensemble
         )
     else:  # Multi-channel
         noisy_channels = []
@@ -196,7 +209,8 @@ def apply_noise_multichannel(
             channel_audio = audio[ch_idx]
             noisy_channel = generate_protected_audio(
                 channel_audio, sr, window_size, hop_size, noise_scale, adaptive_scaling,
-                dry_wet, vocal_mode, use_phase_perturbation, use_temporal_masking
+                dry_wet, vocal_mode, use_phase_perturbation, use_temporal_masking,
+                use_ensemble
             )
             noisy_channels.append(noisy_channel)
         return np.vstack(noisy_channels)

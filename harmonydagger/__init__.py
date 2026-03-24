@@ -13,6 +13,7 @@ from .core import (
     generate_protected_audio,
     generate_psychoacoustic_noise,
 )
+from .ensemble import generate_ensemble_perturbation, list_strategies
 from .file_operations import (
     parallel_batch_process,
     process_audio_file,

@@ -41,6 +41,7 @@ def process_audio_file(
     vocal_mode: bool = False,
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
+    use_ensemble: bool = False,
 ) -> Tuple[bool, str, float]:
     """
     Process a single audio file with HarmonyDagger.
@@ -83,6 +84,7 @@ def process_audio_file(
                 vocal_mode=vocal_mode,
                 use_phase_perturbation=use_phase_perturbation,
                 use_temporal_masking=use_temporal_masking,
+                use_ensemble=use_ensemble,
             )
         except Exception as e:
             logger.error(f"Audio processing error: {str(e)}")
@@ -260,6 +262,7 @@ def _process_file_for_batch(
     vocal_mode: bool = False,
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
+    use_ensemble: bool = False,
 ) -> Tuple[str, Tuple[bool, str, float]]:
     """
     Process a single audio file for batch processing.
@@ -291,6 +294,7 @@ def _process_file_for_batch(
         vocal_mode=vocal_mode,
         use_phase_perturbation=use_phase_perturbation,
         use_temporal_masking=use_temporal_masking,
+        use_ensemble=use_ensemble,
     )
 
 
@@ -310,6 +314,7 @@ def parallel_batch_process(
     vocal_mode: bool = False,
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
+    use_ensemble: bool = False,
 ) -> Dict[str, Dict[str, Union[bool, str, float]]]:
     """
     Process multiple audio files in parallel using a process pool.
@@ -334,6 +339,7 @@ def parallel_batch_process(
         vocal_mode=vocal_mode,
         use_phase_perturbation=use_phase_perturbation,
         use_temporal_masking=use_temporal_masking,
+        use_ensemble=use_ensemble,
     )
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -399,6 +405,7 @@ def batch_process(
     vocal_mode: bool = False,
     use_phase_perturbation: bool = False,
     use_temporal_masking: bool = False,
+    use_ensemble: bool = False,
 ) -> Dict[str, Dict[str, Union[bool, str, float]]]:
     """
     Process all audio files in a directory.
@@ -430,6 +437,7 @@ def batch_process(
             vocal_mode=vocal_mode,
             use_phase_perturbation=use_phase_perturbation,
             use_temporal_masking=use_temporal_masking,
+            use_ensemble=use_ensemble,
         )
     else:
         results = {}
@@ -453,6 +461,7 @@ def batch_process(
                 vocal_mode=vocal_mode,
                 use_phase_perturbation=use_phase_perturbation,
                 use_temporal_masking=use_temporal_masking,
+                use_ensemble=use_ensemble,
             )
 
             results[file_path] = {
