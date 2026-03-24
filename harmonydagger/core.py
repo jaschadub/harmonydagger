@@ -9,6 +9,7 @@ from .common import (
     ADAPTIVE_SCALE_NORM_MIN,
     ADAPTIVE_SCALE_NORM_RANGE,
     ADAPTIVE_SIGNAL_STRENGTH_DIV,
+    DEFAULT_DRY_WET,
     DEFAULT_HOP_SIZE,
     DEFAULT_NOISE_SCALE,
     DEFAULT_WINDOW_SIZE,
@@ -22,6 +23,7 @@ from .psychoacoustics import (
     hearing_threshold,
     magnitude_to_db,
 )
+from .vocal_mode import apply_vocal_emphasis
 
 
 def generate_psychoacoustic_noise(
@@ -30,7 +32,8 @@ def generate_psychoacoustic_noise(
     window_size: int = DEFAULT_WINDOW_SIZE,
     hop_size: int = DEFAULT_HOP_SIZE,
     noise_scale: float = DEFAULT_NOISE_SCALE,
-    adaptive_scaling: bool = True
+    adaptive_scaling: bool = True,
+    vocal_mode: bool = False,
 ) -> NDArray[np.float64]:
     """
     Generate psychoacoustically masked noise for a single audio channel.
@@ -82,10 +85,6 @@ def generate_psychoacoustic_noise(
                                           min(ADAPTIVE_SCALE_NORM_RANGE, signal_strength_above_thresh_db / ADAPTIVE_SIGNAL_STRENGTH_DIV)
                         current_noise_scale = noise_scale * adaptive_factor
 
-                # Noise should be above hearing threshold but below original signal, attenuated by masking
-                # The (1.0 - masking_attenuation_db / 20.0) term is an approximation of masking effect in linear domain
-                # A more psychoacoustically accurate way would be to calculate masking threshold in dB,
-                # then convert to magnitude, but this is a simplified approach.
                 noise_level_mag = current_noise_scale * signal_mag_linear * (1.0 - masking_attenuation_db / 20.0)
 
                 # Clip noise to be between hearing threshold and a factor of original signal magnitude
@@ -94,6 +93,10 @@ def generate_psychoacoustic_noise(
                     hearing_thresh_mag,
                     NOISE_UPPER_BOUND_FACTOR * signal_mag_linear
                 )
+
+    # Apply vocal emphasis if enabled
+    if vocal_mode:
+        noise_magnitude = apply_vocal_emphasis(noise_magnitude, freqs)
 
     noise_stft = noise_magnitude * np.exp(1j * phase)
     _, noise_audio = istft(
@@ -111,30 +114,90 @@ def generate_psychoacoustic_noise(
     return noise_audio
 
 
+def generate_protected_audio(
+    audio: NDArray[np.float64],
+    sr: int,
+    window_size: int = DEFAULT_WINDOW_SIZE,
+    hop_size: int = DEFAULT_HOP_SIZE,
+    noise_scale: float = DEFAULT_NOISE_SCALE,
+    adaptive_scaling: bool = True,
+    dry_wet: float = DEFAULT_DRY_WET,
+    vocal_mode: bool = False,
+    use_phase_perturbation: bool = False,
+    use_temporal_masking: bool = False,
+) -> NDArray[np.float64]:
+    """
+    Generate fully protected audio combining all perturbation techniques.
+
+    This is the main orchestrator that composes magnitude noise, phase
+    perturbation, and temporal masking into a single protection signal.
+
+    Args:
+        audio: Input audio (mono channel).
+        sr: Sample rate.
+        window_size: STFT window size.
+        hop_size: STFT hop size.
+        noise_scale: Base noise scale (0-1).
+        adaptive_scaling: Use adaptive noise scaling.
+        dry_wet: Mix ratio (0.0 = original, 1.0 = fully protected).
+        vocal_mode: Optimize for vocal frequency range.
+        use_phase_perturbation: Add phase-based perturbation.
+        use_temporal_masking: Add temporal forward masking noise.
+
+    Returns:
+        Protected audio signal.
+    """
+    from .phase import generate_phase_perturbation
+    from .temporal_masking import apply_temporal_masking
+
+    # Base psychoacoustic noise
+    noise = generate_psychoacoustic_noise(
+        audio, sr, window_size, hop_size, noise_scale, adaptive_scaling, vocal_mode
+    )
+
+    # Layer phase perturbation
+    if use_phase_perturbation:
+        phase_noise = generate_phase_perturbation(audio, sr, window_size, hop_size)
+        noise = noise + phase_noise
+
+    # Layer temporal masking noise
+    if use_temporal_masking:
+        temporal_noise = apply_temporal_masking(audio, sr, noise_scale=noise_scale * 0.5)
+        noise = noise + temporal_noise
+
+    # Apply dry/wet mix
+    protected = audio + dry_wet * noise
+    return np.clip(protected, -1.0, 1.0)
+
+
 def apply_noise_multichannel(
     audio: NDArray[np.float64],
     sr: int,
     window_size: int,
     hop_size: int,
     noise_scale: float,
-    adaptive_scaling: bool = True
+    adaptive_scaling: bool = True,
+    dry_wet: float = DEFAULT_DRY_WET,
+    vocal_mode: bool = False,
+    use_phase_perturbation: bool = False,
+    use_temporal_masking: bool = False,
 ) -> NDArray[np.float64]:
     """
     Process multi-channel audio by applying psychoacoustic noise to each channel.
     """
-    if audio.ndim == 1: # Mono
-        noise = generate_psychoacoustic_noise(
-            audio, sr, window_size, hop_size, noise_scale, adaptive_scaling
+    if audio.ndim == 1:  # Mono
+        return generate_protected_audio(
+            audio, sr, window_size, hop_size, noise_scale, adaptive_scaling,
+            dry_wet, vocal_mode, use_phase_perturbation, use_temporal_masking
         )
-        return apply_noise_to_audio(audio, noise)
-    else: # Multi-channel
+    else:  # Multi-channel
         noisy_channels = []
         for ch_idx in range(audio.shape[0]):
             channel_audio = audio[ch_idx]
-            noise = generate_psychoacoustic_noise(
-                channel_audio, sr, window_size, hop_size, noise_scale, adaptive_scaling
+            noisy_channel = generate_protected_audio(
+                channel_audio, sr, window_size, hop_size, noise_scale, adaptive_scaling,
+                dry_wet, vocal_mode, use_phase_perturbation, use_temporal_masking
             )
-            noisy_channel = apply_noise_to_audio(channel_audio, noise)
             noisy_channels.append(noisy_channel)
         return np.vstack(noisy_channels)
 
@@ -144,4 +207,4 @@ def apply_noise_to_audio(audio: NDArray[np.float64], noise: NDArray[np.float64])
     Apply generated noise to audio signal and prevent clipping.
     """
     perturbed_audio = audio + noise
-    return np.clip(perturbed_audio, -1.0, 1.0) # Assuming audio is normalized to [-1, 1]
+    return np.clip(perturbed_audio, -1.0, 1.0)  # Assuming audio is normalized to [-1, 1]

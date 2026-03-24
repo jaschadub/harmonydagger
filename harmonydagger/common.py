@@ -54,6 +54,23 @@ ADAPTIVE_SCALE_NORM_RANGE = 1.0 # Max will be MIN + RANGE = 1.5
 ADAPTIVE_SIGNAL_STRENGTH_DIV = 60.0
 NOISE_UPPER_BOUND_FACTOR = 0.8 # Noise magnitude upper bound relative to signal
 
+# Phase perturbation constants
+PHASE_PERTURBATION_MAX_RADIANS = 0.3  # Max phase shift in radians (~17 degrees)
+
+# Temporal (forward) masking constants
+FORWARD_MASKING_DECAY_MS = 200.0  # Forward masking decays over ~200ms
+FORWARD_MASKING_INITIAL_DB = 30.0  # Initial masking level in dB above threshold
+FORWARD_MASKING_DECAY_RATE = 0.1  # Exponential decay rate per ms
+
+# Vocal-specific mode constants
+VOCAL_FREQ_LOW_HZ = 300.0   # Lower bound of vocal emphasis range
+VOCAL_FREQ_HIGH_HZ = 3000.0  # Upper bound of vocal emphasis range
+VOCAL_EMPHASIS_FACTOR = 2.0   # Perturbation boost within vocal range
+VOCAL_FORMANT_FREQS = [500, 1500, 2500]  # Approximate formant center frequencies
+
+# Dry/wet mix default
+DEFAULT_DRY_WET = 1.0  # 1.0 = fully protected, 0.0 = original (no protection)
+
 # Default STFT parameters (can be overridden by CLI)
 DEFAULT_WINDOW_SIZE = 1024
 DEFAULT_HOP_SIZE = 512

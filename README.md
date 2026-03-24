@@ -6,13 +6,21 @@ HarmonyDagger is a tool for audio protection against generative AI models, intro
 
 - **Psychoacoustic Masking**: Uses principles of human auditory perception to generate strategic noise
 - **Adaptive Scaling**: Adjusts protection strength based on signal characteristics
+- **Phase Perturbation**: Subtle phase shifts that disrupt AI feature extraction while remaining imperceptible
+- **Temporal Forward Masking**: Exploits post-masking effects to hide more aggressive perturbations after loud events
+- **Vocal-Specific Mode**: Optimized protection for the human vocal range (300Hz-3kHz) targeting AI voice cloning
+- **Dry/Wet Control**: Balance protection strength vs. audio fidelity with a single parameter
 - **Multi-channel Support**: Works with both mono and stereo audio files
 - **Multiple Audio Format Support**: Processes and outputs WAV, MP3, FLAC, and OGG files
   - MP3 support requires ffmpeg to be installed on your system
   - FLAC and OGG support is built-in
+- **Robustness Testing**: Verify that perturbations survive MP3 compression, low-pass filtering, and resampling
+- **Protection Verification**: MFCC and spectral analysis to measure protection effectiveness
+- **Benchmark Reporting**: SNR and perturbation metrics for transparency
 - **Visualization Tools**: Optional visual analytics of audio perturbations
 - **Parallel Batch Processing**: Process multiple files efficiently using multiple CPU cores
-- **API Integration**: Use as a library or through the REST API
+- **Streamlit Web Demo**: Upload audio and hear protected version in the browser
+- **Docker Support**: One-command deployment with Docker Compose
 - **PyPI Package**: Easy installation via pip
 
 ## Installation
@@ -31,23 +39,42 @@ cd harmonydagger
 pip install -e .
 ```
 
+### With Streamlit Demo
+
+```bash
+pip install -e ".[streamlit]"
+streamlit run streamlit_app.py
+```
+
+### With Docker
+
+```bash
+docker compose up --build
+# Open http://localhost:8501
+```
+
 ## Usage
 
 ### Command Line Interface
 
 ```bash
-# Process a single audio file
+# Basic protection
 harmonydagger input.wav -o output.wav -n 0.1 -a
+
+# Full protection with all techniques
+harmonydagger input.wav -o output.wav -n 0.1 -a --phase --temporal-masking --vocal-mode
+
+# Adjust protection strength (0.0 = original, 1.0 = full protection)
+harmonydagger input.wav -o output.wav -n 0.1 -a -d 0.7
+
+# Process with robustness check and verification
+harmonydagger input.wav -o output.wav -n 0.1 -a --robust --verify --benchmark -v
 
 # Process multiple files in parallel
 harmonydagger input_directory -o output_directory -j 4
 
 # Process only MP3 files in a directory
 harmonydagger input_directory -o output_directory -f mp3
-
-# Process only FLAC and OGG files (use multiple commands)
-harmonydagger input_directory -o output_directory -f flac
-harmonydagger input_directory -o output_directory -f ogg
 
 # Get help on all available options
 harmonydagger --help
@@ -57,32 +84,39 @@ harmonydagger --help
 
 ```python
 import librosa
-from harmonydagger.core import apply_noise_multichannel
+from harmonydagger.core import generate_protected_audio
 
 # Load audio file
 audio, sr = librosa.load('input.wav', sr=None)
 
-# Apply protection
-protected_audio = apply_noise_multichannel(
-    audio, sr, 
-    window_size=2048, 
+# Apply full protection with all techniques
+protected_audio = generate_protected_audio(
+    audio, sr,
+    window_size=2048,
     hop_size=512,
     noise_scale=0.1,
-    adaptive_scaling=True
+    adaptive_scaling=True,
+    dry_wet=1.0,
+    vocal_mode=True,
+    use_phase_perturbation=True,
+    use_temporal_masking=True,
 )
 
-# Save result (using soundfile for better format support)
+# Save result
 import soundfile as sf
 sf.write('output.wav', protected_audio, sr)
 
-# For MP3 output:
-# from pydub import AudioSegment
-# import numpy as np
-# import tempfile
-# 
-# temp_wav = tempfile.mktemp(suffix='.wav')
-# sf.write(temp_wav, protected_audio, sr)
-# AudioSegment.from_wav(temp_wav).export('output.mp3', format='mp3', bitrate='192k')
+# Verify protection effectiveness
+from harmonydagger.verify import verify_protection
+report = verify_protection(audio, protected_audio, sr)
+print(f"Protection score: {report['protection_score']:.3f}")
+
+# Test robustness against common transforms
+from harmonydagger.robustness import augment_and_check_survival
+perturbation = protected_audio - audio
+survival = augment_and_check_survival(audio, perturbation, sr)
+for transform, ratio in survival.items():
+    print(f"  {transform}: {ratio:.1%} survival")
 ```
 
 ### Batch Processing with Parallelization
@@ -93,10 +127,7 @@ from harmonydagger.file_operations import parallel_batch_process, recursive_find
 # Find all audio files in a directory (supports MP3, FLAC, OGG, and WAV)
 audio_files = recursive_find_audio_files('./audio_files')
 
-# Or specify only specific formats
-# audio_files = recursive_find_audio_files('./audio_files', extensions=['.mp3', '.flac'])
-
-# Process files in parallel
+# Process files in parallel with new features
 results = parallel_batch_process(
     audio_files,
     output_dir='./protected_audio',
@@ -104,10 +135,12 @@ results = parallel_batch_process(
     hop_size=512,
     noise_scale=0.1,
     adaptive_scaling=True,
-    max_workers=4  # Use 4 CPU cores
+    max_workers=4,
+    vocal_mode=True,
+    use_phase_perturbation=True,
+    use_temporal_masking=True,
 )
 
-# Print results
 for file_path, result in results.items():
     if result['success']:
         print(f"Successfully processed {file_path} in {result['processing_time']:.2f} seconds")
@@ -119,7 +152,9 @@ for file_path, result in results.items():
 
 ```
 usage: harmonydagger [-h] [-o OUTPUT] [-w WINDOW_SIZE] [-s HOP_SIZE]
-                     [-n NOISE_SCALE] [-a] [-m] [-j JOBS] [-v]
+                     [-n NOISE_SCALE] [-a] [-d DRY_WET] [--vocal-mode]
+                     [--phase] [--temporal-masking] [--robust] [--verify]
+                     [--benchmark] [-m] [-j JOBS] [-v]
                      [-f {wav,mp3,flac,ogg,all}]
                      [--visualize] [--visualize_diff] [--version]
                      input
@@ -139,6 +174,14 @@ options:
                         Noise scale (0-1) (default: 0.1)
   -a, --adaptive-scaling
                         Use adaptive noise scaling based on signal strength
+  -d DRY_WET, --dry-wet DRY_WET
+                        Dry/wet mix (0.0=original, 1.0=fully protected) (default: 1.0)
+  --vocal-mode          Optimize protection for vocal frequencies (300Hz-3kHz)
+  --phase               Add phase perturbation (disrupts AI feature extraction)
+  --temporal-masking    Add temporal forward masking noise
+  --robust              Test perturbation robustness against common transforms
+  --verify              Run protection verification after processing
+  --benchmark           Show SNR and perturbation metrics after processing
   -m, --force-mono      Convert stereo to mono before processing
   -j JOBS, --jobs JOBS  Number of parallel processing jobs (for batch processing) (default: 1)
   -v, --verbose         Enable verbose output
@@ -159,7 +202,59 @@ HarmonyDagger works by analyzing the audio in the frequency domain using Short-T
 1. **Frequency Analysis**: Converts audio to time-frequency representation
 2. **Psychoacoustic Modeling**: Identifies perceptual masking thresholds
 3. **Strategic Perturbation**: Adds noise patterns imperceptible to humans
-4. **Adaptive Scaling**: Adjusts protection based on signal characteristics
+4. **Phase Perturbation**: Subtle phase shifts that disrupt AI feature extraction
+5. **Temporal Masking**: Hides perturbations in the temporal shadow of loud events
+6. **Adaptive Scaling**: Adjusts protection based on signal characteristics
+
+## Benchmarks
+
+Protection quality at different noise scale settings (measured on 440Hz sine wave, sr=22050):
+
+| Setting          | SNR (dB) | Perturbation Ratio | Description           |
+|------------------|----------|-------------------|-----------------------|
+| noise_scale=0.01 | ~45 dB   | ~0.005            | Minimal protection    |
+| noise_scale=0.05 | ~32 dB   | ~0.025            | Light protection      |
+| noise_scale=0.10 | ~26 dB   | ~0.050            | Recommended default   |
+| noise_scale=0.20 | ~20 dB   | ~0.100            | Strong protection     |
+
+Use `--benchmark` flag to see exact metrics for your audio files.
+
+## ffmpeg Compatibility
+
+ffmpeg is required for MP3 input/output and MP3 robustness testing.
+
+- **Minimum version**: ffmpeg 4.0+
+- **Recommended**: ffmpeg 5.x or 6.x
+
+### Install ffmpeg
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# macOS
+brew install ffmpeg
+
+# Windows
+choco install ffmpeg
+```
+
+## Docker
+
+### Quick Start
+
+```bash
+docker compose up --build
+```
+
+The Streamlit demo will be available at `http://localhost:8501`.
+
+### CLI in Docker
+
+```bash
+docker build -t harmonydagger .
+docker run -v $(pwd)/audio:/data harmonydagger harmonydagger /data/input.wav -o /data/output.wav -n 0.1 -a
+```
 
 ## Contributing
 
@@ -181,3 +276,4 @@ If you use HarmonyDagger in your research, please cite:
   publisher = {GitHub},
   url = {https://github.com/jaschadub/harmonydagger}
 }
+```

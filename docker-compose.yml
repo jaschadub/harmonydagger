@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  harmonydagger-demo:
+    build: .
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    environment:
+      - STREAMLIT_SERVER_MAX_UPLOAD_SIZE=50

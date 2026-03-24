@@ -2,10 +2,10 @@
 Utility functions for WAV file operations.
 """
 import logging
-import numpy as np
 import os
-import struct
 import wave
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
