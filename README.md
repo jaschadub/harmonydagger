@@ -264,6 +264,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## References
+
+See [REFERENCES.md](REFERENCES.md) for the research underpinning HarmonyDagger — including HarmonyCloak, AntiFake, psychoacoustic masking literature, and the AI audio generation systems this tool is designed to defend against.
+
 ## Citation
 
 If you use HarmonyDagger in your research, please cite:
