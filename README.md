@@ -53,6 +53,15 @@ docker compose up --build
 # Open http://localhost:8501
 ```
 
+### SteamOS
+
+```bash
+# This will create a virtual environment (venv) because SteamOS is an externally managed environment
+python -m venv ~/Downloads/venv/
+~/Downloads/venv/bin/pip install harmonydagger
+source ~/Downloads/venv/bin/activate
+```
+
 ## Usage
 
 ### Command Line Interface
