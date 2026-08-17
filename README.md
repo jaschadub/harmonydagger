@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> **NOTE: Most of the AI music services have added protections against most of the methods used here. Please use this repo as a reference to build from, not with.**
+
+
 # HarmonyDagger
 
 HarmonyDagger is a tool for audio protection against generative AI models, introducing imperceptible psychoacoustic noise patterns that prevent effective machine learning while preserving human listening quality.
